@@ -2,94 +2,150 @@
 #include <fstream>
 #include <sstream>
 #include <iostream>
+#include <optional>
+#include <map>
 #include <glad/glad.h>
+#include "utils.h"
 
 class Shader
 {
+public:
+    struct SubShader {
+        int id;
+    
+    private:
+        bool bOwned = true;
+        
+    public:
+        SubShader(int _id) : id{_id} {}
+        SubShader(const SubShader&) = default;
+        SubShader(SubShader&& lhs) : id{lhs.id} {
+            lhs.bOwned = false;
+        }
+
+        SubShader& operator=(const SubShader&) = default;
+        SubShader& operator=(SubShader&& lhs) {
+            id = lhs.id;
+            lhs.bOwned = false;
+        }
+
+        ~SubShader() {
+            if (bOwned)
+                glDeleteShader(id);
+        }
+    };
+
 private:
     bool bValid = false;
-    int program;
+    int id;
+
+    std::map<GLenum, SubShader> programs;
 
 public:
-    Shader(const std::string& vPath, const std::string& fPath)
-    {
-        std::ifstream input{vPath, std::ifstream::in | std::ifstream::ate};
+    static std::optional<std::pair<GLenum, int>> createSubShader(const std::pair<GLenum, std::string>& program) {
+        const auto& [type, relPath] = program;
+        const auto path = std::string{SHADER_BASE_PATH}.append(relPath);
+
+        // Read file:
+        std::ifstream input{path, std::ifstream::in | std::ifstream::ate};
         if (!input)
         {
-            std::cout << "SHADER ERROR: Vertex path not found." << std::endl;
-            return;
+            std::cout << "SHADER ERROR: Path " << path << " not found." << std::endl;
+            return {};
         }
 
-        std::string vertexSource{}, fragmentSource{};
-        vertexSource.reserve(input.tellg());
+        std::string source{};
+        source.reserve(input.tellg());
         input.seekg(0, input.beg);
-        vertexSource.insert(vertexSource.begin(), std::istreambuf_iterator<char>{input}, std::istreambuf_iterator<char>{});
-        auto vSourcePtr = vertexSource.c_str();
+        source.insert(source.begin(), std::istreambuf_iterator<char>{input}, std::istreambuf_iterator<char>{});
+        auto sourcePtr = source.c_str();
         input.close();
 
-        input.open(fPath, std::ifstream::in | std::ifstream::ate);
-        if (!input)
-        {
-            std::cout << "SHADER ERROR: Fragment path not found." << std::endl;
-            return;
-        }
-
-        fragmentSource.reserve(input.tellg());
-        input.seekg(0, input.beg);
-        fragmentSource.insert(fragmentSource.begin(), std::istreambuf_iterator<char>{input}, std::istreambuf_iterator<char>{});
-        auto fSourcePtr = fragmentSource.c_str();
-        input.close();
-        
-        // build and compile our shader program
-        // ------------------------------------
-        // vertex shader
-        int vertexShader = glCreateShader(GL_VERTEX_SHADER);
-        glShaderSource(vertexShader, 1, &vSourcePtr, NULL);
-        glCompileShader(vertexShader);
+        // Compile shader:
+        int prog = glCreateShader(type);
+        glShaderSource(prog, 1, &sourcePtr, NULL);
+        glCompileShader(prog);
         // check for shader compile errors
         int success;
         char infoLog[512];
-        glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &success);
+        glGetShaderiv(prog, GL_COMPILE_STATUS, &success);
         if (!success)
         {
-            glGetShaderInfoLog(vertexShader, 512, NULL, infoLog);
-            std::cout << "ERROR::SHADER::VERTEX::COMPILATION_FAILED\n"
+            glGetShaderInfoLog(prog, 512, NULL, infoLog);
+            std::cout << "SHADER COMPILATION ERROR in file: \"" << path << "\"\n"
                       << infoLog << std::endl;
-            return;
+            return std::nullopt;
         }
-        // fragment shader
-        int fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-        glShaderSource(fragmentShader, 1, &fSourcePtr, NULL);
-        glCompileShader(fragmentShader);
-        // check for shader compile errors
-        glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &success);
-        if (!success)
-        {
-            glGetShaderInfoLog(fragmentShader, 512, NULL, infoLog);
-            std::cout << "ERROR::SHADER::FRAGMENT::COMPILATION_FAILED\n"
-                      << infoLog << std::endl;
-            return;
-        }
-        // link shaders
-        program = glCreateProgram();
-        glAttachShader(program, vertexShader);
-        glAttachShader(program, fragmentShader);
-        glLinkProgram(program);
-        // check for linking errors
-        glGetProgramiv(program, GL_LINK_STATUS, &success);
-        if (!success)
-        {
-            glGetProgramInfoLog(program, 512, NULL, infoLog);
-            std::cout << "ERROR::SHADER::PROGRAM::LINKING_FAILED\n"
-                      << infoLog << std::endl;
-            return;
-        }
-        glDeleteShader(vertexShader);
-        glDeleteShader(fragmentShader);
-        
-        bValid = true;
+
+        return std::make_pair(type, prog);
     }
 
-    int get() const { return program; }
+    // Appends a program to this shaders list of subshaders. Returns true if new shader was added.
+    bool addShader(const std::pair<GLenum, std::string>& program) {
+        auto result = createSubShader(program);
+        if (!result)
+            return false;
+
+        auto [key, value] = *result;
+        programs.insert(std::move(std::make_pair(key, std::move(SubShader{value}))));
+        bValid = false;
+        return true;
+    }
+
+    // Attempts to link this shaers subshaders. Returns true if successfull. 
+    bool link() {
+        id = glCreateProgram();
+        for (const auto& prog : programs)
+            glAttachShader(id, prog.second.id);
+            
+        glLinkProgram(id);
+        // check for linking errors
+        int success;
+        char infoLog[512];
+        glGetProgramiv(id, GL_LINK_STATUS, &success);
+        if (!success)
+        {
+            glGetProgramInfoLog(id, 512, NULL, infoLog);
+            std::cout << "ERROR::SHADER::PROGRAM::LINKING_FAILED\n"
+                      << infoLog << std::endl;
+            return false;
+        }
+        
+        bValid = true;
+        return true;
+    }
+
+    template <std::size_t I>
+    void compileAndLink(std::array<std::pair<GLenum, std::string>, I>&& params) {
+        for (auto param : params) {
+            if (!addShader(param))
+                return;
+        }
+
+        link();
+    }
+
+    template <std::size_t I>
+    Shader(std::pair<GLenum, std::string>(&& params)[I]) {
+        std::array<std::pair<GLenum, std::string>, I> arr;
+        for (auto i{0}; i < I; ++i)
+            arr[i] = params[i];
+        compileAndLink(std::move(arr));
+        // compileAndLink(std::to_array<std::pair<GLenum, std::string>, I>(params)); // C++20
+    }
+
+    // template <typename ... S>
+    // Shader(S&& ... args) {
+    //     compileAndLink<sizeof...(S)>(std::to_array<std::pair<GLenum, std::string>, sizeof...(S)>(static_cast<std::pair<GLenum, std::string>>(args) ...));
+    // }
+
+    int get() const { return id; }
     int operator* () const { return get(); }
+
+    ~Shader() {
+        programs.clear();
+
+        // Delete program:
+        glDeleteProgram(id);
+    }
 };

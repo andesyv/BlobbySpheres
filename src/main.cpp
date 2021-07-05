@@ -10,19 +10,43 @@
 #include "timer.h"
 
 
-void framebuffer_size_callback(GLFWwindow *window, int width, int height);
-void processInput(GLFWwindow *window);
-void errorCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar *message, const void *userParam);
-void showFPS(GLFWwindow* window);
-
-// settings
-const unsigned int SCR_WIDTH = 800;
-const unsigned int SCR_HEIGHT = 600;
-
-template <unsigned int n>
-std::string enumToString(GLenum arg, const std::array<std::pair<GLenum, std::string>, n>& params)
+// glfw: whenever the window size changed (by OS or user resize) this callback function executes
+// ---------------------------------------------------------------------------------------------
+void framebuffer_size_callback(GLFWwindow *window, int width, int height)
 {
-    for (unsigned int i{0}; i < params.size(); ++i)
+    // make sure the viewport matches the new window dimensions; note that width and
+    // height will be significantly larger than specified on retina displays.
+    glViewport(0, 0, width, height);
+}
+
+void showFPS(GLFWwindow* window)
+{
+    static Timer timer{};
+    static unsigned int frameCount{0};
+    auto elapsed = timer.elapsed<std::chrono::milliseconds>();
+    if (elapsed >= 1000)
+    {
+        const auto fps = frameCount * 1000.f / elapsed;
+        std::string title{"VSCodeOpenGL, fps: " + std::to_string(fps)};
+        glfwSetWindowTitle(window, title.c_str());
+        frameCount = 0;
+        timer.reset();
+    }
+    ++frameCount;
+}
+
+// process all input: query GLFW whether relevant keys are pressed/released this frame and react accordingly
+// ---------------------------------------------------------------------------------------------------------
+void processInput(GLFWwindow *window)
+{
+    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+        glfwSetWindowShouldClose(window, true);
+}
+
+template <std::size_t I>
+std::string enumToString(GLenum arg, const std::array<std::pair<GLenum, std::string>, I>& params)
+{
+    for (std::size_t i{0}; i < I; ++i)
         if (params[i].first == arg)
             return params[i].second;
     
@@ -35,8 +59,43 @@ template <typename... T>
 std::string enumToString(GLenum arg, T... params)
 {
     constexpr auto n = sizeof...(T);
-    return enumToString<n>(arg, std::array<std::pair<GLenum, std::string>, n>{params...});
+    return enumToString<n>(arg, std::array<ESPair, n>{params...});
 }
+
+void errorCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar *message, const void *userParam)
+{
+    std::string sourceStr{enumToString(source,
+        ESPair{GL_DEBUG_SOURCE_API, "GL_DEBUG_SOURCE_API"},
+        ESPair{GL_DEBUG_SOURCE_WINDOW_SYSTEM, "GL_DEBUG_SOURCE_WINDOW_SYSTEM"},
+        ESPair{GL_DEBUG_SOURCE_SHADER_COMPILER, "GL_DEBUG_SOURCE_SHADER_COMPILER"},
+        ESPair{GL_DEBUG_SOURCE_THIRD_PARTY, "GL_DEBUG_SOURCE_THIRD_PARTY"},
+        ESPair{GL_DEBUG_SOURCE_APPLICATION, "GL_DEBUG_SOURCE_APPLICATION"},
+        ESPair{GL_DEBUG_SOURCE_OTHER, "GL_DEBUG_SOURCE_OTHER"}
+    )};
+    std::string typeStr{enumToString(type,
+        ESPair{GL_DEBUG_TYPE_ERROR, "GL_DEBUG_TYPE_ERROR"},
+        ESPair{GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR, "GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR"},
+        ESPair{GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR, "GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR"},
+        ESPair{GL_DEBUG_TYPE_PORTABILITY, "GL_DEBUG_TYPE_PORTABILITY"},
+        ESPair{GL_DEBUG_TYPE_PERFORMANCE, "GL_DEBUG_TYPE_PERFORMANCE"},
+        ESPair{GL_DEBUG_TYPE_MARKER, "GL_DEBUG_TYPE_MARKER"},
+        ESPair{GL_DEBUG_TYPE_PUSH_GROUP, "GL_DEBUG_TYPE_PUSH_GROUP"},
+        ESPair{GL_DEBUG_TYPE_POP_GROUP, "GL_DEBUG_TYPE_POP_GROUP"},
+        ESPair{GL_DEBUG_TYPE_OTHER, "GL_DEBUG_TYPE_OTHER"}
+    )};
+    std::string severityStr{enumToString(severity,
+        ESPair{GL_DEBUG_SEVERITY_HIGH, "GL_DEBUG_SEVERITY_HIGH"},
+        ESPair{GL_DEBUG_SEVERITY_MEDIUM, "GL_DEBUG_SEVERITY_MEDIUM"},
+        ESPair{GL_DEBUG_SEVERITY_LOW, "GL_DEBUG_SEVERITY_LOW"},
+        ESPair{GL_DEBUG_SEVERITY_NOTIFICATION, "GL_DEBUG_SEVERITY_NOTIFICATION"}
+    )};
+    
+    std::cout << "GL_ERROR: (source: " << sourceStr << ", type: " << typeStr << ", severity: " << severityStr << ", message: " << message << std::endl;
+}
+
+// settings
+constexpr unsigned int SCR_WIDTH = 800;
+constexpr unsigned int SCR_HEIGHT = 600;
 
 struct Transform {
     glm::vec3 pos;
@@ -71,8 +130,9 @@ int main()
     // ------------------------------
     glfwInit();
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+    glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GLFW_TRUE);
 
 #ifdef __APPLE__
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE); // uncomment this statement to fix compilation on OS X
@@ -98,13 +158,13 @@ int main()
         return -1;
     }
 
-    int versionMajor, versionMinor;
-    glGetIntegerv(GL_MAJOR_VERSION, &versionMajor);
-    glGetIntegerv(GL_MINOR_VERSION, &versionMinor);
-    std::cout << "Running OpenGL version: " << versionMajor << "." << versionMinor << std::endl;
+    glm::ivec2 version;
+    glGetIntegerv(GL_MAJOR_VERSION, &version.x);
+    glGetIntegerv(GL_MINOR_VERSION, &version.y);
+    std::cout << "Running OpenGL version: " << version.x << "." << version.y << std::endl;
 
     glEnable(GL_DEBUG_OUTPUT);
-    // glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS); // If you want to ensure the error happens exactly after the error on the same thread.
+    glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS); // If you want to ensure the error happens exactly after the error on the same thread.
     glDebugMessageCallback(&errorCallback, nullptr);
 
 
@@ -114,7 +174,15 @@ int main()
 
     // ================== Setup scene ====================================
 
-    Shader defaultShader{"src/default.vert", "src/default.frag"};
+    // Shader defaultShader{
+    //     {{GL_VERTEX_SHADER, "src/default.vert"},
+    //     {GL_FRAGMENT_SHADER, "src/default.frag"}}
+    // };
+    Shader defaultShader{{
+        {GL_VERTEX_SHADER, "default.vert"},
+        {GL_FRAGMENT_SHADER, "default.frag"}
+    }};
+
 
     // Setup
     entt::registry EM{};
@@ -200,7 +268,7 @@ int main()
         for (const auto& entity : view) 
         {
             // (Structured bindings ftw!! ENTT is so cool)
-            auto& [mesh, material] = view.get<Mesh, Material>(entity);
+            auto [mesh, material] = view.get<Mesh, Material>(entity);
 
             // draw our first triangle
             glUseProgram(material.shader);
@@ -228,68 +296,4 @@ int main()
     // ------------------------------------------------------------------
     glfwTerminate();
     return 0;
-}
-
-void showFPS(GLFWwindow* window)
-{
-    static Timer timer{};
-    static unsigned int frameCount{0};
-    auto elapsed = timer.elapsed<std::chrono::milliseconds>();
-    if (elapsed >= 1000)
-    {
-        const auto fps = frameCount * 1000.f / elapsed;
-        std::string title{"VSCodeOpenGL, fps: " + std::to_string(fps)};
-        glfwSetWindowTitle(window, title.c_str());
-        frameCount = 0;
-        timer.reset();
-    }
-    ++frameCount;
-}
-
-// process all input: query GLFW whether relevant keys are pressed/released this frame and react accordingly
-// ---------------------------------------------------------------------------------------------------------
-void processInput(GLFWwindow *window)
-{
-    if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
-        glfwSetWindowShouldClose(window, true);
-}
-
-// glfw: whenever the window size changed (by OS or user resize) this callback function executes
-// ---------------------------------------------------------------------------------------------
-void framebuffer_size_callback(GLFWwindow *window, int width, int height)
-{
-    // make sure the viewport matches the new window dimensions; note that width and
-    // height will be significantly larger than specified on retina displays.
-    glViewport(0, 0, width, height);
-}
-
-void errorCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar *message, const void *userParam)
-{
-    std::string sourceStr{enumToString(source,
-        ESPair{GL_DEBUG_SOURCE_API, "GL_DEBUG_SOURCE_API"},
-        ESPair{GL_DEBUG_SOURCE_WINDOW_SYSTEM, "GL_DEBUG_SOURCE_WINDOW_SYSTEM"},
-        ESPair{GL_DEBUG_SOURCE_SHADER_COMPILER, "GL_DEBUG_SOURCE_SHADER_COMPILER"},
-        ESPair{GL_DEBUG_SOURCE_THIRD_PARTY, "GL_DEBUG_SOURCE_THIRD_PARTY"},
-        ESPair{GL_DEBUG_SOURCE_APPLICATION, "GL_DEBUG_SOURCE_APPLICATION"},
-        ESPair{GL_DEBUG_SOURCE_OTHER, "GL_DEBUG_SOURCE_OTHER"}
-    )};
-    std::string typeStr{enumToString(type,
-        ESPair{GL_DEBUG_TYPE_ERROR, "GL_DEBUG_TYPE_ERROR"},
-        ESPair{GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR, "GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR"},
-        ESPair{GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR, "GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR"},
-        ESPair{GL_DEBUG_TYPE_PORTABILITY, "GL_DEBUG_TYPE_PORTABILITY"},
-        ESPair{GL_DEBUG_TYPE_PERFORMANCE, "GL_DEBUG_TYPE_PERFORMANCE"},
-        ESPair{GL_DEBUG_TYPE_MARKER, "GL_DEBUG_TYPE_MARKER"},
-        ESPair{GL_DEBUG_TYPE_PUSH_GROUP, "GL_DEBUG_TYPE_PUSH_GROUP"},
-        ESPair{GL_DEBUG_TYPE_POP_GROUP, "GL_DEBUG_TYPE_POP_GROUP"},
-        ESPair{GL_DEBUG_TYPE_OTHER, "GL_DEBUG_TYPE_OTHER"}
-    )};
-    std::string severityStr{enumToString(severity,
-        ESPair{GL_DEBUG_SEVERITY_HIGH, "GL_DEBUG_SEVERITY_HIGH"},
-        ESPair{GL_DEBUG_SEVERITY_MEDIUM, "GL_DEBUG_SEVERITY_MEDIUM"},
-        ESPair{GL_DEBUG_SEVERITY_LOW, "GL_DEBUG_SEVERITY_LOW"},
-        ESPair{GL_DEBUG_SEVERITY_NOTIFICATION, "GL_DEBUG_SEVERITY_NOTIFICATION"}
-    )};
-    
-    std::cout << "GL_ERROR: (source: " << sourceStr << ", type: " << typeStr << ", severity: " << severityStr << ", message: " << message << std::endl;
 }

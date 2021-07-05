@@ -1,0 +1,1 @@
+static constexpr auto SHADER_BASE_PATH = "@CMAKE_CURRENT_SOURCE_DIR@/";
