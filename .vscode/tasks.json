@@ -1,205 +1,26 @@
 {
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "msvc compile",
+            "label": "build",
             "type": "shell",
-            "command": "cl.exe",
+            "command": "msbuild",
             "args": [
-                "/c",
-                "/std:c++17",
-                "/EHsc",
-                "/Zi",
-                "/I",
-                "${env:GLFW_HOME}/include",
-                "/I",
-                "${env:GLAD_HOME}/include",
-                "/I",
-                "${workspaceRoot}/glm",
-                "/I",
-                "${env:ENTT_HOME}/single_include",
-                "/I",
-                "${env:GLM_HOME}"
-                "${env:GLAD_HOME}/src/glad.c",
-                "${workspaceRoot}/src/*.cpp"
+                // Ask msbuild to generate full paths for file names.
+                "/property:GenerateFullPaths=true",
+                "/t:build",
+                // Do not generate summary otherwise it leads to duplicate errors in Problems panel
+                "/consoleloggerparameters:NoSummary"
             ],
+            "group": "build",
             "presentation": {
-                "reveal": "always"
+                // Reveal the output only if unrecognized errors occur.
+                "reveal": "silent"
             },
-            "problemMatcher": "$msCompile",
-            "options": {
-                "cwd": "${workspaceRoot}/build"
-            }
-        },
-        {
-            "label": "msvc link",
-            "type": "shell",
-            "command": "link.exe",
-            "args": [
-                "/DEBUG",
-                "/OUT:app.exe",
-                "*.obj",
-                "${env:GLFW_HOME}/lib/msvc2019/glfw3dll.lib"
-            ],
-            "presentation": {
-                "reveal": "always"
-            },
-            "problemMatcher": "$msCompile",
-            "options": {
-                "cwd": "${workspaceRoot}/build"
-            }
-        },
-        {
-            "label": "msvc build",
-            "type": "shell",
-            "dependsOn": [
-                "clean",
-                "setup dll",
-                "msvc compile",
-                "msvc link"
-            ],
-            "dependsOrder": "sequence",
-            "problemMatcher": "$msCompile",
-            "presentation": {
-                "reveal": "always"
-            },
-            "group": {
-                "kind": "build",
-                "isDefault": true
-            }
-        },
-        {
-            "label": "msvc build and run",
-            "type": "shell",
-            "dependsOn": [
-                "msvc build",
-                "run"
-            ],
-            "dependsOrder": "sequence",
-            "problemMatcher": "$msCompile",
-            "presentation": {
-                "reveal": "always"
-            },
-            "group": {
-                "kind": "build",
-                "isDefault": true
-            }
-        },
-        {
-            "label": "MinGW compile",
-            "type": "shell",
-            "command": "g++",
-            "args": [
-                "-c",
-                "-std=c++11",
-                "-I${env:GLFW_HOME}/include",
-                "-I${env:GLAD_HOME}/include",
-                "-I${workspaceRoot}/glm",
-                "${env:GLAD_HOME}/src/glad.c",
-                "${workspaceRoot}/src/*.cpp"
-            ],
-            "presentation": {
-                "reveal": "always"
-            },
-            "problemMatcher": [],
-            "options": {
-                "cwd": "${workspaceRoot}/build"
-            }
-        },
-        {
-            "label": "MinGW link",
-            "type": "shell",
-            "command": "g++",
-            "args": [
-                "-o",
-                "app.exe",
-                "*.o",
-                "-L${env:GLFW_HOME}/lib/mingw64",
-                "-lglfw3",
-                "-lgdi32",
-                "-lopengl32"
-            ],
-            "presentation": {
-                "reveal": "always"
-            },
-            "problemMatcher": [],
-            "options": {
-                "cwd": "${workspaceRoot}/build"
-            }
-        },
-        {
-            "label": "MinGW build",
-            "dependsOn": [
-                "clean",
-                "MinGW compile",
-                "MinGW link"
-            ],
-            "dependsOrder": "sequence",
-            "group": {
-                "kind": "build",
-                "isDefault": true
-            },
-            "presentation": {
-                "reveal": "always"
-            },
-            "problemMatcher": "$msCompile",
-            "options": {
-                "cwd": "${workspaceRoot}/build"
-            }
-        },
-        {
-            "label": "run",
-            "type": "shell",
-            "command": "${workspaceRoot}/build/app.exe",
-            "group": {
-                "kind": "build",
-                "isDefault": true
-            },
-            "presentation": {
-                "reveal": "always"
-            },
+            // Use the standard MS compiler pattern to detect errors, warnings and infos
             "problemMatcher": "$msCompile"
-        },
-        {
-            "label": "MinGW build and run",
-            "dependsOn": [
-                "MinGW Build",
-                "run"
-            ],
-            "dependsOrder": "sequence",
-            "group": {
-                "kind": "build",
-                "isDefault": true
-            },
-            "presentation": {
-                "reveal": "always"
-            },
-            "problemMatcher": "$msCompile"
-        },
-        {
-            "label": "clean",
-            "type": "shell",
-            "options": {
-                "cwd": "${workspaceRoot}"
-            },
-            "windows": {
-                "command": "rm",
-                "args": [
-                    "build/*",
-                    "-Recurse"
-                ]
-            }
-        },
-        {
-            "label": "setup dll",
-            "type": "shell",
-            "windows": {
-                "command": "cp",
-                "args": [
-                    "${env:GLFW_HOME}/lib/msvc2019/glfw3.dll",
-                    "build/glfw3.dll"
-                ]
-            }
         }
     ]
 }

@@ -2,23 +2,20 @@
     "configurations": [
         {
             "name": "Win32",
+            "includePath": [
+                "${workspaceFolder}/**"
+            ],
             "defines": [
                 "_DEBUG",
                 "UNICODE",
                 "_UNICODE"
             ],
-            "compilerPath": "${env:VCInstallDir}/Tools/MSVC/14.26.28801/bin/Hostx64/x64/cl.exe",
-            "windowsSdkVersion": "10.0.18362.0",
-            "intelliSenseMode": "${default}",
-            "cStandard": "c11",
+            "windowsSdkVersion": "10.0.19041.0",
+            "compilerPath": "D:/Program Files (x86)/Microsoft Visual Studio/2019/Community/VC/Tools/MSVC/14.28.29910/bin/Hostx64/x64/cl.exe",
+            "cStandard": "c17",
             "cppStandard": "c++17",
-            "includePath": [
-                "${env:VCInstallDir}/Tools/MSVC/14.26.28801/include",
-                "${env:GLFW_HOME}/include",
-                "${env:GLAD_HOME}/include",
-                "${env:ENTT_HOME}/single_include",
-                "${env:GLM_HOME}"
-            ]
+            "intelliSenseMode": "windows-msvc-x64",
+            "configurationProvider": "ms-vscode.cmake-tools"
         }
     ],
     "version": 4
