@@ -19,3 +19,5 @@ endif()
 # GLM:
 target_include_directories(VSCodeOpenGL PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/glm)
 
+# ENTT
+target_include_directories(VSCodeOpenGL PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/entt/src)
