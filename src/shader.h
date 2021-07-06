@@ -5,7 +5,7 @@
 #include <optional>
 #include <map>
 #include <glad/glad.h>
-#include "utils.h"
+#include "constants.h"
 
 class Shader
 {

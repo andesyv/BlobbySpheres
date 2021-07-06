@@ -8,6 +8,10 @@
 
 #include "shader.h"
 #include "timer.h"
+#include "components.h"
+#include "utils.h"
+
+using namespace util;
 
 
 // glfw: whenever the window size changed (by OS or user resize) this callback function executes
@@ -97,31 +101,6 @@ void errorCallback(GLenum source, GLenum type, GLuint id, GLenum severity, GLsiz
 constexpr unsigned int SCR_WIDTH = 800;
 constexpr unsigned int SCR_HEIGHT = 600;
 
-struct Transform {
-    glm::vec3 pos;
-    glm::vec3 rot;
-    glm::vec3 scale;
-};
-
-struct Mesh {
-    unsigned int VAO;
-    unsigned int vertexCount;
-    bool bIndices : 1;
-    unsigned int indexCount : 7;     
-
-    Mesh(unsigned int _VAO = 0, unsigned int _vCount = 0)
-        : VAO{_VAO}, vertexCount{_vCount}, bIndices{false}
-    {}
-
-    Mesh(unsigned int _VAO, unsigned int _vCount, unsigned int _iCount)
-        : VAO{_VAO}, vertexCount{_vCount}, bIndices{true}, indexCount{_iCount}
-    {}
-};
-
-struct Material {
-    int shader;
-};
-
 int main()
 {
     Timer appTimer{};
@@ -191,37 +170,19 @@ int main()
     auto &mat = EM.emplace<Material>(entity, defaultShader.get());
     // set up vertex data (and buffer(s)) and configure vertex attributes
     // ------------------------------------------------------------------
-    float vertices[] = {
+    auto vao = std::make_unique<VertexArray>(std::vector{
         0.5f, 0.5f, 0.0f,   // top right
         0.5f, -0.5f, 0.0f,  // bottom right
         -0.5f, -0.5f, 0.0f, // bottom left
         -0.5f, 0.5f, 0.0f   // top left
-    };
-    unsigned int indices[] = {
-        // note that we start from 0!
+    }, std::vector{
         0, 1, 3, // first Triangle
         1, 2, 3  // second Triangle
-    };
-    unsigned int VBO, VAO, EBO;
-    glGenVertexArrays(1, &VAO);
-    glGenBuffers(1, &VBO);
-    glGenBuffers(1, &EBO);
-    // bind the Vertex Array Object first, then bind and set vertex buffer(s), and then configure vertex attributes(s).
-    glBindVertexArray(VAO);
+    });
 
-    glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    vao->vertexAttribute(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), nullptr);
 
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
-
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void *)0);
-    glEnableVertexAttribArray(0);
-
-    // note that this is allowed, the call to glVertexAttribPointer registered VBO as the vertex attribute's bound vertex buffer object so afterwards we can safely unbind
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-
-    EM.emplace<Mesh>(entity, VAO, static_cast<unsigned int>(sizeof(vertices)), static_cast<unsigned int>(sizeof(indices)));
+    EM.emplace<Mesh>(entity, std::move(vao), 4, 6);
 
     // remember: do NOT unbind the EBO while a VAO is active as the bound element buffer object IS stored in the VAO; keep the EBO bound.
     //glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
@@ -272,11 +233,7 @@ int main()
 
             // draw our first triangle
             glUseProgram(material.shader);
-            glBindVertexArray(mesh.VAO); // seeing as we only have a single VAO there's no need to bind it every time, but we'll do so to keep things a bit more organized
-            if (mesh.bIndices)
-                glDrawElements(GL_TRIANGLES, mesh.indexCount, GL_UNSIGNED_INT, 0);
-            else
-                glDrawArrays(GL_TRIANGLES, 0, mesh.vertexCount);
+            mesh.draw();
         }
         glBindVertexArray(0); // no need to unbind it every time
 
@@ -285,12 +242,6 @@ int main()
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
-
-    // optional: de-allocate all resources once they've outlived their purpose:
-    // ------------------------------------------------------------------------
-    glDeleteVertexArrays(1, &VAO);
-    glDeleteBuffers(1, &VBO);
-    glDeleteBuffers(1, &EBO);
 
     // glfw: terminate, clearing all previously allocated GLFW resources.
     // ------------------------------------------------------------------
