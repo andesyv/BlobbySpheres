@@ -8,6 +8,24 @@
 #include <bitset>
 
 namespace util {
+// Util guard class
+template <typename T>
+class Guard {
+private:
+    T* mPtr;
+
+public:
+    Guard(T* ptr) : mPtr{ptr} {
+        if (mPtr)
+            mPtr->bind();
+    }
+
+    ~Guard() {
+        if (mPtr)
+            mPtr->unbind();
+    }
+};
+
 template <GLenum BufferType>
 class Buffer {
 public:
@@ -29,6 +47,8 @@ public:
     void unbind() {
         glBindBuffer(BufferType, 0);
     }
+
+    auto guard() { return Guard{this}; }
 
     ~Buffer() {
         glDeleteBuffers(1, &id);
@@ -83,6 +103,8 @@ public:
     void unbind() {
         glBindVertexArray(0);
     }
+
+    auto guard() { return Guard{this}; }
 
     bool hasIndices() const { return static_cast<bool>(indexBuffer); }
 

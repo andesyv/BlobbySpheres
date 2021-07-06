@@ -9,24 +9,25 @@ struct Transform {
 };
 
 struct Mesh {
-    std::unique_ptr<util::VertexArray> vao;
+    std::weak_ptr<util::VertexArray> vao;
     unsigned int vertexCount{0}, indexCount{0};
 
     Mesh() = default;
-    Mesh(std::unique_ptr<util::VertexArray>&& vertexArray, unsigned int vCount = 0, unsigned int iCount = 0)
-        : vao{std::move(vertexArray)}, vertexCount{vCount}, indexCount{iCount}
+    Mesh(std::shared_ptr<util::VertexArray>& vertexArray, unsigned int vCount = 0, unsigned int iCount = 0)
+        : vao{vertexArray}, vertexCount{vCount}, indexCount{iCount}
     {}
 
     void draw() {
-        if (!vao)
+        if (vao.expired())
             return;
+
+        auto vao_ptr = vao.lock();
             
-        vao->bind();
-        if (vao->hasIndices())
+        const auto guard = vao_ptr->guard();
+        if (vao_ptr->hasIndices())
             glDrawElements(GL_TRIANGLES, indexCount, GL_UNSIGNED_INT, 0);
         else
             glDrawArrays(GL_TRIANGLES, 0, vertexCount);
-        vao->unbind();
     }
 };
 
