@@ -1,3 +1,5 @@
+#pragma once
+
 #include <chrono>
 
 template <typename ct = std::chrono::steady_clock>

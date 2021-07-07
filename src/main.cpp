@@ -7,7 +7,6 @@
 #include <glm/glm.hpp>   // https://github.com/g-truc/glm
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtx/quaternion.hpp>
-#include <glm/gtc/type_ptr.hpp>
 
 #include "shader.h"
 #include "timer.h"
@@ -49,6 +48,7 @@ void showFPS(GLFWwindow* window)
 }
 
 using namespace util;
+using namespace comp;
 
 // settings
 static unsigned int SCR_WIDTH = 800;
@@ -194,6 +194,7 @@ int main()
 
 
 
+
         // process all input: query GLFW whether relevant keys are pressed/released this frame and react accordingly
         // ---------------------------------------------------------------------------------------------------------
         const auto processInput = [&](GLFWwindow *window) {
@@ -238,8 +239,8 @@ int main()
 
                 // draw our first triangle
                 glUseProgram(material.shader);
-                glUniformMatrix4fv(glGetUniformLocation(material.shader, "MVPInverse"), 1, GL_FALSE, glm::value_ptr(MVPInverse));
-                glUniform1f(glGetUniformLocation(material.shader, "time"), runningTime);
+                uniform(material, "MVPInverse", MVPInverse);
+                uniform(material, "time", runningTime);
                 mesh.draw();
             }
             glBindVertexArray(0); // no need to unbind it every time

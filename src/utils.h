@@ -5,7 +5,8 @@
 
 #include <memory>
 #include <vector>
-#include <bitset>
+
+#include "components.h"
 
 namespace util {
 // Util guard class
@@ -114,6 +115,31 @@ public:
     }
 };
 
-// template <typename T>
-// using Buffer = std::unique_ptr<T>;
+template <typename T>
+void uniform(unsigned int location, const T& value) = delete;
+
+// vec{1-4}
+template <> void uniform<float>(unsigned int location, const float& value);
+template <> void uniform<glm::vec2>(unsigned int location, const glm::vec2& value);
+template <> void uniform<glm::vec3>(unsigned int location, const glm::vec3& value);
+template <> void uniform<glm::vec4>(unsigned int location, const glm::vec4& value);
+
+// mat{2-4}
+template <> void uniform<glm::mat2>(unsigned int location, const glm::mat2& value);
+template <> void uniform<glm::mat3>(unsigned int location, const glm::mat3& value);
+template <> void uniform<glm::mat4>(unsigned int location, const glm::mat4& value);
+
+template <typename T>
+void uniform(comp::Material& mat, std::string name, const T& value) {
+    unsigned int location;
+    if (mat.cachedUniformLocations.contains(name)) {
+        location = mat.cachedUniformLocations[name];
+    } else {
+        location = glGetUniformLocation(mat.shader, name.c_str());
+        mat.cachedUniformLocations[name] = location;
+    }
+
+    uniform(location, value);
+}
+
 }
