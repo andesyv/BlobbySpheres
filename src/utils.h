@@ -12,11 +12,12 @@ namespace util {
 // Util guard class
 template <typename T>
 class Guard {
-private:
+protected:
     T* mPtr;
 
 public:
-    Guard(T* ptr) : mPtr{ptr} {
+    Guard(T* ptr)
+     : mPtr{ptr} {
         if (mPtr)
             mPtr->bind();
     }
@@ -32,13 +33,21 @@ class Buffer {
 public:
     unsigned int id;
     const GLenum type = BufferType;
-    
+
     template <typename T>
-    Buffer(const std::vector<T>& params) {
+    void bufferData(const std::vector<T>& data, GLenum usage = GL_STATIC_DRAW) {
+        auto g = guard();
+        glBufferData(BufferType, sizeof(T) * data.size(), data.data(), usage);
+    }
+    
+    Buffer() {
         glGenBuffers(1, &id);
-        glBindBuffer(BufferType, id);
-        glBufferData(BufferType, sizeof(T) * params.size(), params.data(), GL_STATIC_DRAW);
-        glBindBuffer(BufferType, 0);
+    }
+
+    template <typename T>
+    Buffer(const std::vector<T>& params, GLenum usage = GL_STATIC_DRAW) {
+        glGenBuffers(1, &id);
+        bufferData(params, usage);
     }
 
     void bind() {
@@ -50,6 +59,10 @@ public:
     }
 
     auto guard() { return Guard{this}; }
+
+    void bindBase(unsigned int binding = 0) {
+        glBindBufferBase(BufferType, 0, id);
+    }
 
     ~Buffer() {
         glDeleteBuffers(1, &id);
