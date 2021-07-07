@@ -1,13 +1,13 @@
 cmake_minimum_required(VERSION 3.16.0)
 
-project(VSCodeOpenGL)
+project(BlobbySpheres)
 
 # C++ Project settings
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Output executable
-add_executable(VSCodeOpenGL)
+add_executable(BlobbySpheres)
 
 # Source files
 add_subdirectory(src)
