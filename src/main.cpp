@@ -147,7 +147,7 @@ int main()
         
         const auto [sourceStr, typeStr, severityStr] = std::tie(SOURCES.at(source), TYPES.at(type), SEVERITIES.at(severity));
 
-        std::cout << "GL_ERROR: (source: " << sourceStr << ", type: " << typeStr << ", severity: " << severityStr << ", message: " << message << std::endl;
+        std::cout << "GL_DEBUG: (source: " << sourceStr << ", type: " << typeStr << ", severity: " << severityStr << ", message: " << message << std::endl;
         assert(severity == GL_DEBUG_SEVERITY_NOTIFICATION);
     };
 
@@ -206,6 +206,25 @@ int main()
 
         auto sceneBuffer = std::make_unique<Buffer<GL_SHADER_STORAGE_BUFFER>>(scene);
         sceneBuffer->bindBase(0);
+
+
+        auto positionTexture = std::make_shared<Texture<GL_TEXTURE_2D>>(glm::ivec2{SCR_WIDTH, SCR_HEIGHT});
+        auto depthTexture = std::make_shared<Texture<GL_TEXTURE_2D>>();
+        depthTexture->bind();
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+        depthTexture->data(0, GL_DEPTH_COMPONENT16, {SCR_WIDTH, SCR_HEIGHT}, 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_BYTE, nullptr);
+
+        std::unique_ptr<Framebuffer> sphereFramebuffer{new Framebuffer{{
+            std::make_pair(GL_COLOR_ATTACHMENT0, std::shared_ptr{positionTexture}),
+            std::make_pair(GL_DEPTH_ATTACHMENT, std::shared_ptr{depthTexture})
+        }}};
+        
+        if (!sphereFramebuffer->valid())
+            std::cout << "Framebuffer error: " << sphereFramebuffer->completeness() << std::endl;
+        assert(sphereFramebuffer->valid());
 
 
         // uncomment this call to draw in wireframe polygons.
