@@ -3,10 +3,12 @@
 #define M_PI 3.14159
 #define EPSILON 0.001
 
-in vec2 uv;
+in vec2 ndc;
 
 uniform mat4 MVPInverse = mat4(1.0);
 uniform float time = 0.0;
+
+layout(location = 0) uniform sampler2D positionTex; 
 
 layout(std430, binding = 0) buffer sceneBuffer
 {
@@ -52,9 +54,9 @@ vec3 gradient(vec3 p) {
 void main()
 {
     // Near and far plane
-    vec4 near = MVPInverse * vec4(uv, -1., 1.0);
+    vec4 near = MVPInverse * vec4(ndc, -1., 1.0);
     near /= near.w;
-    vec4 far = MVPInverse * vec4(uv, 1., 1.0);
+    vec4 far = MVPInverse * vec4(ndc, 1., 1.0);
     far /= far.w;
 
     vec4 ro = vec4(near.xyz, 0.0);
@@ -89,5 +91,8 @@ void main()
     //     p += rd * dist;
     // }
 
-    fragColor = vec4(abs(rd.xyz) * 0.6, 1.0);
+    vec2 uv = ndc * 0.5 + 0.5;
+    vec4 pos = texture(positionTex, uv);
+    fragColor = vec4(pos.xyz, 1.0);
+    // fragColor = vec4(abs(rd.xyz) * 0.6, 1.0);
 }

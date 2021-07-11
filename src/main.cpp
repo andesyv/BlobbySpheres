@@ -2,8 +2,6 @@
 #include <GLFW/glfw3.h>
 #include <entt/entt.hpp> // https://github.com/skypjack/entt
 #include <glm/glm.hpp>   // https://github.com/g-truc/glm
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtx/quaternion.hpp>
 #include <glm/gtc/random.hpp>
 
 #include <array>
@@ -20,6 +18,7 @@
 #include "utils.h"
 #include "scene.h"
 #include "settings.h"
+#include "camera.h"
 
 #define ESTR(x) ESPair{x, #x}
 
@@ -91,7 +90,7 @@ int main()
     // glfw: whenever the window size changed (by OS or user resize) this callback function executes
     // ---------------------------------------------------------------------------------------------
     static const auto persp = [](int w, int h) { return glm::perspective(30.f, static_cast<float>(w) / h, 0.1f, 100.f); };
-    static auto pMat = persp(SCR_WIDTH, SCR_HEIGHT);
+    Camera::getGlobalCamera().setPMat(persp(SCR_WIDTH, SCR_HEIGHT));
     static auto framebuffer_size_callback = [](GLFWwindow *window, int w, int h) {
         // make sure the viewport matches the new window dimensions; note that width and
         // height will be significantly larger than specified on retina displays.
@@ -100,7 +99,7 @@ int main()
         height = static_cast<unsigned int>(h);
         glViewport(0, 0, w, h);
 
-        pMat = persp(w, h);
+        Camera::getGlobalCamera().setPMat(persp(w, h));
     };
 
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
@@ -150,7 +149,7 @@ int main()
         const auto [sourceStr, typeStr, severityStr] = std::tie(SOURCES.at(source), TYPES.at(type), SEVERITIES.at(severity));
 
         std::cout << "GL_DEBUG: (source: " << sourceStr << ", type: " << typeStr << ", severity: " << severityStr << ", message: " << message << std::endl;
-        assert(severity == GL_DEBUG_SEVERITY_NOTIFICATION);
+        assert(severity != GL_DEBUG_SEVERITY_HIGH);
     };
 
     glEnable(GL_DEBUG_OUTPUT);
@@ -158,35 +157,22 @@ int main()
     glDebugMessageCallback(errorCallback, nullptr);
 
 
-    const auto calcMVP = [&](){
-        constexpr auto cameraDist = 1.0f;
+    // process all input: query GLFW whether relevant keys are pressed/released this frame and react accordingly
+    // ---------------------------------------------------------------------------------------------------------
+    const auto processInput = [&](GLFWwindow *window) {
+        if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+            glfwSetWindowShouldClose(window, true);
 
-        const auto rot = 
-        glm::angleAxis(static_cast<float>(mousePos.y), glm::vec3{1.f, 0.f, 0.f}) *
-        glm::angleAxis(static_cast<float>(mousePos.x), glm::vec3{0.f, 1.f, 0.f});
-        const auto vMat = glm::translate(glm::mat4{1.f}, glm::vec3{0.f, 0.f, -cameraDist}) * glm::mat4{glm::normalize(rot)};
-        const auto MVP = pMat * vMat;
-        return glm::inverse(MVP);
+        glfwGetCursorPos(window, &mousePos.x, &mousePos.y);
+        mousePos = (mousePos / glm::dvec2{SCR_WIDTH, SCR_HEIGHT}) * 2.0 - 1.0;
+        Camera::getGlobalCamera().calcMVP();
     };
+
 
     {
         // uncomment this call to draw in wireframe polygons.
         //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-        auto scene = Scene{calcMVP()};
-        auto& MVPInverse = scene.MVPInverse;
-
-
-
-        // process all input: query GLFW whether relevant keys are pressed/released this frame and react accordingly
-        // ---------------------------------------------------------------------------------------------------------
-        const auto processInput = [&](GLFWwindow *window) {
-            if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
-                glfwSetWindowShouldClose(window, true);
-
-            glfwGetCursorPos(window, &mousePos.x, &mousePos.y);
-            mousePos = (mousePos / glm::dvec2{SCR_WIDTH, SCR_HEIGHT}) * 2.0 - 1.0;
-            MVPInverse = calcMVP();
-        };
+        auto scene = Scene{};
 
 
         std::cout << "Setup took " << appTimer.elapsed<std::chrono::milliseconds>() << "ms." << std::endl;

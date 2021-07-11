@@ -133,6 +133,8 @@ public:
     }
 };
 
+using Tex2D = Texture<GL_TEXTURE_2D>;
+
 // template <>
 // class Texture<GL_TEXTURE_3D> : public TextureBase<GL_TEXTURE_3D, glm::vec3> {
 // public:

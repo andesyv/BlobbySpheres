@@ -1,6 +1,7 @@
 #include "scene.h"
 #include "utils.h"
 #include "settings.h"
+#include "camera.h"
 
 #include <format>
 #include <vector>
@@ -10,24 +11,32 @@
 using namespace comp;
 using namespace util;
 
-Scene::Scene(const glm::mat4& mvpinv)
-    : MVPInverse{mvpinv}
+Scene::Scene()
 {
     shaders.insert(std::make_pair("default", Shader{
         {
-            {GL_VERTEX_SHADER, "default.vert"},
-            {GL_FRAGMENT_SHADER, "default.frag"}
+            {GL_VERTEX_SHADER, "default.vert.glsl"},
+            {GL_FRAGMENT_SHADER, "default.frag.glsl"}
         }
     }));
 
     shaders.insert(std::make_pair("surface", Shader{
         {
-            {GL_VERTEX_SHADER, "screen.vert"},
-            {GL_FRAGMENT_SHADER, "sdf.frag"}
+            {GL_VERTEX_SHADER, "screen.vert.glsl"},
+            {GL_FRAGMENT_SHADER, "sdf.frag.glsl"}
         }, {
             std::format("SCENE_SIZE {}u", SCENE_SIZE)
         }
     }));
+
+    shaders.insert(std::make_pair("sphere", Shader{
+        {
+            {GL_VERTEX_SHADER, "sphere.vert.glsl"},
+            {GL_GEOMETRY_SHADER, "sphere.geom.glsl"},
+            {GL_FRAGMENT_SHADER, "sphere.frag.glsl"}
+        }
+    }));
+
 
 
 
@@ -48,6 +57,7 @@ Scene::Scene(const glm::mat4& mvpinv)
 
 
 
+
     // Setup scene
     for (unsigned int i = 0; i < SCENE_SIZE; ++i) {
         auto entity = EM.create();
@@ -65,11 +75,11 @@ Scene::Scene(const glm::mat4& mvpinv)
     const auto [SCR_WIDTH, SCR_HEIGHT] = get_multiple<0, 1>(Settings::get().to_tuple());
 
     // Framebuffers:
-    auto positionTexture = std::make_shared<Texture<GL_TEXTURE_2D>>(glm::ivec2{SCR_WIDTH, SCR_HEIGHT});
-    auto normalTexture = std::make_shared<Texture<GL_TEXTURE_2D>>(glm::ivec2{SCR_WIDTH, SCR_HEIGHT});
-    auto depthTexture = std::make_shared<Texture<GL_TEXTURE_2D>>(glm::ivec2{SCR_WIDTH, SCR_HEIGHT}, GL_DEPTH_COMPONENT16, GL_DEPTH_COMPONENT);
+    positionTexture = std::make_shared<Tex2D>(glm::ivec2{SCR_WIDTH, SCR_HEIGHT});
+    normalTexture = std::make_shared<Tex2D>(glm::ivec2{SCR_WIDTH, SCR_HEIGHT});
+    depthTexture = std::make_shared<Tex2D>(glm::ivec2{SCR_WIDTH, SCR_HEIGHT}, GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT);
 
-    auto sphereFramebuffer = std::make_shared<Framebuffer>(
+    sphereFramebuffer = std::make_shared<Framebuffer>(
         std::make_pair(GL_COLOR_ATTACHMENT0, std::shared_ptr{positionTexture}),
         std::make_pair(GL_COLOR_ATTACHMENT1, std::shared_ptr{normalTexture}),
         std::make_pair(GL_DEPTH_ATTACHMENT, std::shared_ptr{depthTexture})
@@ -78,23 +88,63 @@ Scene::Scene(const glm::mat4& mvpinv)
     if (!sphereFramebuffer->valid())
         std::cout << "Framebuffer error: " << sphereFramebuffer->completeness() << std::endl;
     assert(sphereFramebuffer->valid());
-
-    glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
 }
 
 void Scene::render() {
-    glClear(GL_COLOR_BUFFER_BIT);
+    const auto runningTime = Settings::get().runningTime;
+    const auto& cam = Camera::getGlobalCamera();
+    const auto& pMat = cam.getPMat();
+    const auto& pMatInverse = cam.getPMatInverse();
+    const auto& vMat = cam.getVMat();
+    const auto& MVP = cam.getMVP();
+    const auto& MVPInverse = cam.getMVPInverse();
+    glm::vec4 nearPlane = pMatInverse * glm::vec4(0.0, 0.0, -1.0, 1.0);
+	nearPlane /= nearPlane.w;
+    
 
-    auto runningTime = Settings::get().runningTime;
+    // Sphere pass
+    {
+        auto g = sphereFramebuffer->guard();
+        glClearColor(0.f, 0.f, 0.f, 1.0f);
+        glClearDepth(1.0);
+        glEnable(GL_DEPTH_TEST);
+        glDepthFunc(GL_LESS);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    if (!shaders.contains("surface"))
-        return;
+        if (!shaders.contains("sphere"))
+            return;
+        
+        const auto shaderId = *shaders.at("sphere");
+        glUseProgram(shaderId);
+        uniform(shaderId, "MVPInverse", MVPInverse);
+        uniform(shaderId, "modelViewMatrix", vMat);
+        uniform(shaderId, "projectionMatrix", pMat);
+        uniform(shaderId, "nearPlaneZ", nearPlane.z);
+        uniform(shaderId, "time", runningTime);
 
-    auto shaderId = *shaders.at("surface");
-    glUseProgram(shaderId);
-    uniform(shaderId, "MVPInverse", MVPInverse);
-    uniform(shaderId, "time", runningTime);
-    screenMesh.draw();
+        auto g2 = sceneBuffer->guard();
+        glDrawArrays(GL_POINTS, 0, static_cast<GLsizei>(SCENE_SIZE));
+    }
 
-    glBindVertexArray(0); // no need to unbind it every time
+
+    // Surface pass
+    {
+        glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+        glDisable(GL_DEPTH_TEST);
+        glClear(GL_COLOR_BUFFER_BIT);
+
+        if (!shaders.contains("surface"))
+                return;
+            
+        const auto shaderId = *shaders.at("surface");
+        glUseProgram(shaderId);
+
+        positionTexture->bind();
+        uniform(shaderId, "MVPInverse", MVPInverse);
+        uniform(shaderId, "time", runningTime);
+
+        screenMesh.draw();
+    }
+
+    // glBindVertexArray(0); // no need to unbind it every time
 }
