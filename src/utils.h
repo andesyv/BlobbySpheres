@@ -1,10 +1,12 @@
-#pragma once
+#ifndef UTILS_H
+#define UTILS_H
 
 #include <glad/glad.h>
 #include <glm/glm.hpp>
 
 #include <memory>
 #include <vector>
+#include <array>
 
 #include "components.h"
 #include "zip.hpp"
@@ -82,7 +84,7 @@ public:
 
     void data(GLint level, GLint internalformat, DimType size, GLint border, GLenum format, GLenum type, const void * data) = delete;
 
-    void init(DimType size = DimType{}, GLenum format = GL_RGBA16F) = delete;
+    void init(DimType size = DimType{}, GLenum internalformat = GL_RGBA16F, GLenum format = GL_RGBA) = delete;
 
     void bind(unsigned int textureUnit = 0) {
         glActiveTexture(GL_TEXTURE0 + textureUnit);
@@ -116,18 +118,18 @@ public:
         glTexImage2D(GL_TEXTURE_2D, level, internalformat, size.x, size.y, border, format, type, data);
     }
 
-    void init(glm::ivec2 size = glm::ivec2{}, GLenum format = GL_RGBA16F) {
+    void init(glm::ivec2 size = glm::ivec2{}, GLenum internalformat = GL_RGBA16F, GLenum format = GL_RGBA) {
         bind();
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
-        data(0, format, size, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+        data(0, internalformat, size, 0, format, GL_UNSIGNED_BYTE, nullptr);
     }
 
     Texture() : TextureBase<GL_TEXTURE_2D, glm::ivec2>{} {}
-    Texture(glm::ivec2 size, GLenum format = GL_RGBA16F) : TextureBase<GL_TEXTURE_2D, glm::ivec2>{} {
-        init(size, format);
+    Texture(glm::ivec2 size, GLenum internalformat = GL_RGBA16F, GLenum format = GL_RGBA) : TextureBase<GL_TEXTURE_2D, glm::ivec2>{} {
+        init(size, internalformat, format);
     }
 };
 
@@ -165,6 +167,9 @@ public:
     template <typename T, std::size_t I>
     VertexArray(T (&& vertices)[I]) : VertexArray{std::vector{vertices}} {}
 
+    template <typename T, std::size_t I>
+    VertexArray(const std::array<T, I>& vertices) : VertexArray{std::vector{vertices}} {}
+
     template <typename T, typename U>
     VertexArray(const std::vector<T>& vertices, const std::vector<U>& indices) : bInit{true} {
         glGenVertexArrays(1, &id);
@@ -179,7 +184,7 @@ public:
         indexBuffer->bind();
     }
 
-    void vertexAttribute(GLuint index, GLint size, GLenum type, GLboolean normalized, GLsizei stride, const void * pointer) {
+    void vertexAttribute(GLuint index, GLint size, GLenum type, GLboolean normalized, GLsizei stride = 0, const void * pointer = nullptr) {
         glVertexAttribPointer(index, size, type, normalized, stride, pointer);
         glEnableVertexAttribArray(index);
     }
@@ -232,10 +237,10 @@ public:
         glGenFramebuffers(1, &id);
     }
 
-    template <std::size_t I>
-    Framebuffer(std::pair<GLenum, std::shared_ptr<Texture<GL_TEXTURE_2D>>> (&& params)[I]) {
-        glGenFramebuffers(1, &id);
+    using ConstructionPair = std::pair<GLenum, std::shared_ptr<Texture<GL_TEXTURE_2D>>>;
 
+    template <std::size_t I>
+    void constructFromTextures(ConstructionPair (&& params)[I]) {
         for (auto [target, texture] : params) {
             if (target == GL_DEPTH_ATTACHMENT)
                 addDepthTexture(std::move(texture));
@@ -247,7 +252,22 @@ public:
             }
         }
 
-        bValid = assemble();
+        assemble();
+    }
+
+    template <std::size_t I>
+    Framebuffer(ConstructionPair (&& params)[I]) {
+        glGenFramebuffers(1, &id);
+
+        constructFromTextures<I>(std::move(params));
+    }
+
+    template <typename ... T>
+    Framebuffer(T&& ... params) {
+        glGenFramebuffers(1, &id);
+
+        constexpr auto N = sizeof...(T);
+        constructFromTextures<N>({static_cast<ConstructionPair>(params)...});
     }
 
     void bind() { glBindFramebuffer(GL_FRAMEBUFFER, id); }
@@ -292,4 +312,22 @@ void uniform(comp::Material& mat, std::string name, const T& value) {
     uniform(location, value);
 }
 
+static std::map<int, std::map<std::string, unsigned int>> cachedAnonymousShaderUniformLocations;
+
+template <typename T>
+void uniform(int shaderId, std::string name, const T& value) {
+    unsigned int location;
+    auto& cachedLocations = cachedAnonymousShaderUniformLocations[shaderId];
+    if (cachedLocations.contains(name)) {
+        location = cachedLocations[name];
+    } else {
+        location = glGetUniformLocation(shaderId, name.c_str());
+        cachedLocations[name] = location;
+    }
+
+    uniform(location, value);
 }
+
+}
+
+#endif // UTILS_H

@@ -34,6 +34,7 @@ public:
     };
 
 private:
+    bool bOwned = true;
     bool bValid = false;
     int id;
 
@@ -78,6 +79,10 @@ public:
         link();
     }
 
+    Shader() = delete;
+    Shader(const Shader&) = delete;
+    Shader(Shader&& rhs);
+
     template <std::size_t I>
     Shader(std::pair<GLenum, std::string>(&& params)[I]) {
         compileAndLink(std::to_array<std::pair<GLenum, std::string>, I>(params)); // C++20
@@ -90,6 +95,9 @@ public:
             std::to_array<std::string_view, J>(globalDefines)
         );
     }
+
+    Shader& operator=(const Shader&) = delete;
+    Shader& operator=(Shader&& rhs);
 
     // template <typename ... S>
     // Shader(S&& ... args) {

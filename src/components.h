@@ -1,4 +1,5 @@
-#pragma once
+#ifndef COMPONENTS_H
+#define COMPONENTS_H
 
 #include <glm/glm.hpp>
 #include <map>
@@ -16,8 +17,13 @@ struct Transform {
     glm::vec3 scale;
 };
 
+struct Sphere {
+    glm::vec3 pos;
+    float radius;
+};
+
 struct Mesh {
-    std::weak_ptr<util::VertexArray> vao;
+    std::shared_ptr<util::VertexArray> vao;
     unsigned int vertexCount{0}, indexCount{0};
 
     Mesh() = default;
@@ -33,3 +39,5 @@ struct Material {
 };
 
 }
+
+#endif // COMPONENTS_H

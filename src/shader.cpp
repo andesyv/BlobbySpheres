@@ -127,9 +127,25 @@ bool Shader::link() {
     return true;
 }
 
+Shader::Shader(Shader&& rhs)
+ : id{rhs.id}, bValid{rhs.bValid}, programs{std::move(rhs.programs)}, defines{std::move(rhs.defines)}
+{
+    rhs.bOwned = false;
+}
+
+Shader& Shader::operator=(Shader&& rhs) {
+    id = rhs.id;
+    bValid = rhs.bValid;
+    programs = std::move(rhs.programs);
+    defines = std::move(rhs.defines);
+    rhs.bOwned = false;
+    return *this;
+}
+
 Shader::~Shader() {
     programs.clear();
 
     // Delete program:
-    glDeleteProgram(id);
+    if (bOwned)
+        glDeleteProgram(id);
 }

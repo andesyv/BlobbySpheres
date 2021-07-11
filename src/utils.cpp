@@ -75,7 +75,8 @@ bool Framebuffer::assemble() {
     glDrawBuffers(rendertargets.size(), reinterpret_cast<unsigned int*>(rendertargets.data()));
 
     // Return status
-    return glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE;
+    bValid = glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE;
+    return bValid;
 }
 
 std::string Framebuffer::completeness() {

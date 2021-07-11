@@ -8,13 +8,11 @@ Mesh::Mesh(std::shared_ptr<util::VertexArray>& vertexArray, unsigned int vCount,
 {}
 
 void Mesh::draw() {
-    if (vao.expired())
-        return;
+    // if (vao.expired())
+    //     return;
 
-    auto vao_ptr = vao.lock();
-        
-    const auto guard = vao_ptr->guard();
-    if (vao_ptr->hasIndices())
+    const auto guard = vao->guard();
+    if (vao->hasIndices())
         glDrawElements(GL_TRIANGLES, indexCount, GL_UNSIGNED_INT, 0);
     else
         glDrawArrays(GL_TRIANGLES, 0, vertexCount);

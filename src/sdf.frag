@@ -70,24 +70,24 @@ void main()
     //     vec4(-0.3 * cos(t3), 0.0, 0.0, 0.06)
     // );
 
-    vec4 p = ro;
-    for (uint i = 0u; i < 100u; ++i) {
-        float dist = sdf(p.xyz);
+    // vec4 p = ro;
+    // for (uint i = 0u; i < 100u; ++i) {
+    //     float dist = sdf(p.xyz);
 
-        if (1000.0 <= dist)
-            break;
+    //     if (1000.0 <= dist)
+    //         break;
 
-        if (dist < EPSILON) {
-            vec3 grad = gradient(p.xyz);
-            vec3 lightDir = rd.xyz;
-            vec3 normal = normalize(grad);
-            vec3 phong = vec3(1.0, 0.0, 0.0) * max(dot(normal, -lightDir), 0.15);
-            fragColor = vec4(phong, 1.0);
-            return;
-        }
+    //     if (dist < EPSILON) {
+    //         vec3 grad = gradient(p.xyz);
+    //         vec3 lightDir = rd.xyz;
+    //         vec3 normal = normalize(grad);
+    //         vec3 phong = vec3(1.0, 0.0, 0.0) * max(dot(normal, -lightDir), 0.15);
+    //         fragColor = vec4(phong, 1.0);
+    //         return;
+    //     }
 
-        p += rd * dist;
-    }
+    //     p += rd * dist;
+    // }
 
     fragColor = vec4(abs(rd.xyz) * 0.6, 1.0);
 }

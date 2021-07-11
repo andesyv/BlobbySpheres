@@ -6,4 +6,5 @@ target_sources(BlobbySpheres PRIVATE
     components.cpp
     utils.cpp
     shader.cpp
+    scene.cpp
 )

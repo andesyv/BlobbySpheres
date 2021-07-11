@@ -18,6 +18,8 @@
 #include "timer.h"
 #include "components.h"
 #include "utils.h"
+#include "scene.h"
+#include "settings.h"
 
 #define ESTR(x) ESPair{x, #x}
 
@@ -58,17 +60,12 @@ void showFPS(GLFWwindow* window)
 using namespace util;
 using namespace comp;
 
-// settings
-static unsigned int SCR_WIDTH = 800;
-static unsigned int SCR_HEIGHT = 600;
-static glm::dvec2 mousePos;
-static float runningTime = 0.f;
-
 int main()
 {
     Timer appTimer{};
     std::srand(std::time(nullptr));
-
+    auto [SCR_WIDTH, SCR_HEIGHT, mousePos, runningTime] = Settings::get().to_tuple();
+ 
     // glfw: initialize and configure
     // ------------------------------
     glfwInit();
@@ -83,7 +80,7 @@ int main()
 
     // glfw window creation
     // --------------------
-    GLFWwindow *window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "VSCodeOpenGL", NULL, NULL);
+    GLFWwindow *window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "BlobbySpheres", NULL, NULL);
     if (window == NULL)
     {
         std::cout << "Failed to create GLFW window" << std::endl;
@@ -93,12 +90,17 @@ int main()
     glfwMakeContextCurrent(window);
     // glfw: whenever the window size changed (by OS or user resize) this callback function executes
     // ---------------------------------------------------------------------------------------------
-    static auto framebuffer_size_callback = [](GLFWwindow *window, int width, int height) {
+    static const auto persp = [](int w, int h) { return glm::perspective(30.f, static_cast<float>(w) / h, 0.1f, 100.f); };
+    static auto pMat = persp(SCR_WIDTH, SCR_HEIGHT);
+    static auto framebuffer_size_callback = [](GLFWwindow *window, int w, int h) {
         // make sure the viewport matches the new window dimensions; note that width and
         // height will be significantly larger than specified on retina displays.
-        SCR_WIDTH = static_cast<unsigned int>(width);
-        SCR_HEIGHT = static_cast<unsigned int>(height);
-        glViewport(0, 0, width, height);
+        auto [width, height] = get_multiple<0, 1>(Settings::get().to_tuple());
+        width = static_cast<unsigned int>(w);
+        height = static_cast<unsigned int>(h);
+        glViewport(0, 0, w, h);
+
+        pMat = persp(w, h);
     };
 
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
@@ -156,94 +158,22 @@ int main()
     glDebugMessageCallback(errorCallback, nullptr);
 
 
+    const auto calcMVP = [&](){
+        constexpr auto cameraDist = 1.0f;
+
+        const auto rot = 
+        glm::angleAxis(static_cast<float>(mousePos.y), glm::vec3{1.f, 0.f, 0.f}) *
+        glm::angleAxis(static_cast<float>(mousePos.x), glm::vec3{0.f, 1.f, 0.f});
+        const auto vMat = glm::translate(glm::mat4{1.f}, glm::vec3{0.f, 0.f, -cameraDist}) * glm::mat4{glm::normalize(rot)};
+        const auto MVP = pMat * vMat;
+        return glm::inverse(MVP);
+    };
 
     {
-        // ================== Setup scene ====================================
-        constexpr auto SCENE_SIZE = 100u;
-
-        Shader defaultShader{{
-            {GL_VERTEX_SHADER, "default.vert"},
-            {GL_FRAGMENT_SHADER, "default.frag"}
-        }};
-
-        Shader surfaceShader{{
-            {GL_VERTEX_SHADER, "screen.vert"},
-            {GL_FRAGMENT_SHADER, "sdf.frag"}
-        }, {
-            std::format("SCENE_SIZE {}u", SCENE_SIZE)
-        }};
-
-
-        // Setup
-        entt::registry EM{};
-
-        // set up vertex data (and buffer(s)) and configure vertex attributes
-        // ------------------------------------------------------------------
-        auto screenSpacedVAO = std::make_shared<VertexArray>(std::vector{
-            -1.f, -1.f, 0.0f, // bottom left
-            1.f, 1.f, 0.0f,   // top right
-            1.f, -1.f, 0.0f,  // bottom right
-
-            -1.f, -1.f, 0.0f, // bottom left
-            -1.f, 1.f, 0.0f,   // top left
-            1.f, 1.f, 0.0f   // top right
-        });
-        screenSpacedVAO->vertexAttribute(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), nullptr);
-        glBindVertexArray(0);
-
-        auto surfaceQuad = EM.create();
-        auto &mat = EM.emplace<Material>(surfaceQuad, surfaceShader.get());
-        EM.emplace<Mesh>(surfaceQuad, screenSpacedVAO, 6);
-
-
-        std::vector<glm::vec4> scene;
-        scene.reserve(SCENE_SIZE);
-        for (unsigned int i = 0; i < SCENE_SIZE; ++i) {
-            const auto pos = glm::linearRand(glm::vec3{-1.f}, glm::vec3{1.f}) * 0.3f;
-            const auto radius = glm::linearRand(0.01f, 0.1f);
-            scene.push_back(glm::vec4{pos, radius});
-        }
-
-        auto sceneBuffer = std::make_unique<Buffer<GL_SHADER_STORAGE_BUFFER>>(scene);
-        sceneBuffer->bindBase(0);
-
-
-        auto positionTexture = std::make_shared<Texture<GL_TEXTURE_2D>>(glm::ivec2{SCR_WIDTH, SCR_HEIGHT});
-        auto depthTexture = std::make_shared<Texture<GL_TEXTURE_2D>>();
-        depthTexture->bind();
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
-        depthTexture->data(0, GL_DEPTH_COMPONENT16, {SCR_WIDTH, SCR_HEIGHT}, 0, GL_DEPTH_COMPONENT, GL_UNSIGNED_BYTE, nullptr);
-
-        std::unique_ptr<Framebuffer> sphereFramebuffer{new Framebuffer{{
-            std::make_pair(GL_COLOR_ATTACHMENT0, std::shared_ptr{positionTexture}),
-            std::make_pair(GL_DEPTH_ATTACHMENT, std::shared_ptr{depthTexture})
-        }}};
-        
-        if (!sphereFramebuffer->valid())
-            std::cout << "Framebuffer error: " << sphereFramebuffer->completeness() << std::endl;
-        assert(sphereFramebuffer->valid());
-
-
         // uncomment this call to draw in wireframe polygons.
         //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-
-        const auto pMat = glm::perspective(30.f, static_cast<float>(SCR_WIDTH) / SCR_HEIGHT, 0.1f, 100.f);
-        const auto calcMVP = [&](){
-            constexpr auto cameraDist = 1.0f;
-
-            const auto rot = 
-            glm::angleAxis(static_cast<float>(mousePos.y), glm::vec3{1.f, 0.f, 0.f}) *
-            glm::angleAxis(static_cast<float>(mousePos.x), glm::vec3{0.f, 1.f, 0.f});
-            const auto vMat = glm::translate(glm::mat4{1.f}, glm::vec3{0.f, 0.f, -cameraDist}) * glm::mat4{glm::normalize(rot)};
-            const auto MVP = pMat * vMat;
-            return glm::inverse(MVP);
-        };
-        
-        auto MVPInverse = calcMVP();
-
+        auto scene = Scene{calcMVP()};
+        auto& MVPInverse = scene.MVPInverse;
 
 
 
@@ -271,7 +201,7 @@ int main()
             // Find time since last frame
             const auto deltaTime = frameTimer.elapsed<std::chrono::milliseconds>() * 0.001f;
             frameTimer.reset();
-            runningTime += deltaTime;
+            runningTime = appTimer.elapsed<std::chrono::milliseconds>() * 0.001f;
 
             showFPS(window);
 
@@ -281,21 +211,7 @@ int main()
 
             // render
             // ------
-            glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-            glClear(GL_COLOR_BUFFER_BIT);
-
-            auto view = EM.view<Mesh, Material>();
-            for (const auto& entity : view) 
-            {
-                auto [mesh, material] = view.get<Mesh, Material>(entity);
-
-                // draw our first triangle
-                glUseProgram(material.shader);
-                uniform(material, "MVPInverse", MVPInverse);
-                uniform(material, "time", runningTime);
-                mesh.draw();
-            }
-            glBindVertexArray(0); // no need to unbind it every time
+            scene.render();
 
             // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
             // -------------------------------------------------------------------------------
