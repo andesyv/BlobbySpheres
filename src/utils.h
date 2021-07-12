@@ -7,6 +7,8 @@
 #include <memory>
 #include <vector>
 #include <array>
+#include <ranges>
+#include <algorithm>
 
 #include "components.h"
 #include "zip.hpp"
@@ -328,6 +330,19 @@ void uniform(int shaderId, std::string name, const T& value) {
     }
 
     uniform(location, value);
+}
+
+// https://timur.audio/how-to-make-a-container-from-a-c20-range
+template <std::ranges::range R>
+auto collect(R&& r) {
+    using value_type = std::ranges::range_value_t<decltype(r)>;
+    std::vector<value_type> v{};
+
+    if constexpr(std::ranges::sized_range<decltype(r)>)
+        v.reserve(std::ranges::size(r));
+    
+    std::ranges::copy(r, std::back_inserter(v));
+    return v;
 }
 
 }

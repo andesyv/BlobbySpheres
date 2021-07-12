@@ -157,22 +157,25 @@ int main()
     glDebugMessageCallback(errorCallback, nullptr);
 
 
-    // process all input: query GLFW whether relevant keys are pressed/released this frame and react accordingly
-    // ---------------------------------------------------------------------------------------------------------
-    const auto processInput = [&](GLFWwindow *window) {
-        if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
-            glfwSetWindowShouldClose(window, true);
-
-        glfwGetCursorPos(window, &mousePos.x, &mousePos.y);
-        mousePos = (mousePos / glm::dvec2{SCR_WIDTH, SCR_HEIGHT}) * 2.0 - 1.0;
-        Camera::getGlobalCamera().calcMVP();
-    };
-
-
     {
         // uncomment this call to draw in wireframe polygons.
         //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
         auto scene = Scene{};
+
+
+        // process all input: query GLFW whether relevant keys are pressed/released this frame and react accordingly
+        // ---------------------------------------------------------------------------------------------------------
+        const auto processInput = [&](GLFWwindow *window) {
+            if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+                glfwSetWindowShouldClose(window, true);
+
+            if (glfwGetKey(window, GLFW_KEY_F5) == GLFW_PRESS)
+                scene.reloadShaders();
+
+            glfwGetCursorPos(window, &mousePos.x, &mousePos.y);
+            mousePos = (mousePos / glm::dvec2{SCR_WIDTH, SCR_HEIGHT}) * 2.0 - 1.0;
+            Camera::getGlobalCamera().calcMVP();
+        };
 
 
         std::cout << "Setup took " << appTimer.elapsed<std::chrono::milliseconds>() << "ms." << std::endl;

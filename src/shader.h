@@ -56,6 +56,8 @@ public:
     // Attempts to link this shaers subshaders. Returns true if successfull. 
     bool link();
 
+    bool reload();
+
     template <std::size_t I>
     void compileAndLink(std::array<std::pair<GLenum, std::string>, I>&& params) {
         for (auto param : params) {

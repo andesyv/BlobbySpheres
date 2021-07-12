@@ -27,6 +27,8 @@ private:
 public:
     Scene();
 
+    void reloadShaders();
+
     void render();
 };
 

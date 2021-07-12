@@ -148,3 +148,11 @@ void Scene::render() {
 
     // glBindVertexArray(0); // no need to unbind it every time
 }
+
+void Scene::reloadShaders() {
+    std::cout << "Reloading shaders!" << std::endl;
+
+    for (auto& [name, program] : shaders)
+        if (!program.reload())
+            std::cout << std::format("Reloading \"{}\" shader failed!", name) << std::endl;
+}

@@ -4,18 +4,25 @@
 #include <sstream>
 #include <string>
 #include <sstream>
+#include <ranges>
+#include <vector>
+
+#include "utils.h"
+
+static unsigned int debugMessageId = 0;
 
 Shader::SubShader::SubShader(int _id, const std::string& path)
  : id{_id}, filePath{path}
 {}
 
 Shader::SubShader::SubShader(SubShader&& lhs)
- : id{lhs.id} {
+ : id{lhs.id}, filePath{std::move(lhs.filePath)} {
     lhs.bOwned = false;
 }
 
 Shader::SubShader& Shader::SubShader::operator=(SubShader&& lhs) {
     id = lhs.id;
+    filePath = std::move(lhs.filePath);
     lhs.bOwned = false;
     return *this;
 }
@@ -120,11 +127,48 @@ bool Shader::link() {
         glGetProgramInfoLog(id, 512, NULL, infoLog);
         std::cout << "ERROR::SHADER::PROGRAM::LINKING_FAILED\n"
                     << infoLog << std::endl;
+        
+        glDeleteProgram(id);
         return false;
     }
+
+    // Print debug info:
+    std::stringstream shaderIdentifier;
+    std::size_t i{0};
+    for (auto it{programs.begin()}; it != programs.end(); ++it, ++i)
+        shaderIdentifier << it->second.filePath << (i == programs.size() - 1 ? "" : ", ");
+    const auto debugMessage = std::format("Shader {{{}}} successfully compiled with id {}", shaderIdentifier.str(), id);
+    glDebugMessageInsert(GL_DEBUG_SOURCE_APPLICATION, GL_DEBUG_TYPE_OTHER, ++debugMessageId, GL_DEBUG_SEVERITY_NOTIFICATION, debugMessage.size(), debugMessage.c_str());
     
     bValid = true;
     return true;
+}
+
+bool Shader::reload() {
+    const auto& defines = getDefineStr();
+    const auto keys = util::collect(programs | std::ranges::views::transform([](const auto& pair){ return pair.first; }));
+
+    if (bOwned && bValid)
+        glDeleteProgram(id);
+
+    bValid = false;
+
+    // Recreate and reinstert subshaders:
+    for (const auto& key : keys) {
+        auto node = std::move(programs.extract(key));
+        const auto& filePath = node.mapped().filePath;
+
+        auto result = createSubShader(std::make_pair(key, filePath), defines);
+        if (!result)
+            return false;
+        
+        const auto id = result->second;
+        node.mapped() = std::move(SubShader{id, filePath});
+        programs.insert(std::move(node));
+    }
+
+    // Relink shader
+    return link();
 }
 
 Shader::Shader(Shader&& rhs)
@@ -146,6 +190,6 @@ Shader::~Shader() {
     programs.clear();
 
     // Delete program:
-    if (bOwned)
+    if (bOwned && bValid)
         glDeleteProgram(id);
 }

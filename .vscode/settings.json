@@ -72,6 +72,9 @@
         "xtree": "cpp",
         "xutility": "cpp",
         "bitset": "cpp",
-        "random": "cpp"
+        "random": "cpp",
+        "filesystem": "cpp",
+        "ranges": "cpp",
+        "span": "cpp"
     }
 }
