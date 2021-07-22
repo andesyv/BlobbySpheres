@@ -62,7 +62,7 @@ Scene::Scene()
     for (unsigned int i = 0; i < SCENE_SIZE; ++i) {
         auto entity = EM.create();
 
-        const auto pos = glm::linearRand(glm::vec3{-1.f}, glm::vec3{1.f}) * 0.3f;
+        const auto pos = glm::ballRand(0.5f);
         const auto radius = glm::linearRand(0.01f, 0.1f);
 
         EM.emplace<Sphere>(entity, pos, radius);
@@ -105,10 +105,8 @@ void Scene::render() {
     // Sphere pass
     {
         auto g = sphereFramebuffer->guard();
-        glClearColor(0.f, 0.f, 0.f, 1.0f);
-        glClearDepth(1.0);
+        glClearColor(0.f, 0.f, 0.f, -1.0f);
         glEnable(GL_DEPTH_TEST);
-        glDepthFunc(GL_LESS);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         if (!shaders.contains("sphere"))
@@ -116,6 +114,7 @@ void Scene::render() {
         
         const auto shaderId = *shaders.at("sphere");
         glUseProgram(shaderId);
+        uniform(shaderId, "MVP", MVP);
         uniform(shaderId, "MVPInverse", MVPInverse);
         uniform(shaderId, "modelViewMatrix", vMat);
         uniform(shaderId, "projectionMatrix", pMat);

@@ -93,6 +93,8 @@ void main()
 
     vec2 uv = ndc * 0.5 + 0.5;
     vec4 pos = texture(positionTex, uv);
+    if (pos.w <= 0.0)
+        discard;
     fragColor = vec4(pos.xyz, 1.0);
     // fragColor = vec4(abs(rd.xyz) * 0.6, 1.0);
 }
