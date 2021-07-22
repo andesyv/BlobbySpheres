@@ -15,6 +15,7 @@ public:
     unsigned int SCR_HEIGHT = 600;
     glm::dvec2 mousePos;
     float runningTime = 0.f;
+    double zoom = 0.5;
 
     static Settings& get() {
         static Settings instance{};
@@ -22,8 +23,8 @@ public:
     }
 
     auto to_tuple() {
-        auto& [a, b, c, d] = *this;
-        return std::forward_as_tuple(a, b, c, d);
+        auto& [a, b, c, d, e] = *this;
+        return std::forward_as_tuple(a, b, c, d, e);
     }
 };
 

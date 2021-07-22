@@ -63,7 +63,7 @@ int main()
 {
     Timer appTimer{};
     std::srand(std::time(nullptr));
-    auto [SCR_WIDTH, SCR_HEIGHT, mousePos, runningTime] = Settings::get().to_tuple();
+    auto [SCR_WIDTH, SCR_HEIGHT, runningTime] = get_multiple<0, 1, 3>(Settings::get().to_tuple());
  
     // glfw: initialize and configure
     // ------------------------------
@@ -162,20 +162,36 @@ int main()
         //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
         auto scene = Scene{};
 
+        // Static wrapper ptr to scene, to get around static functions
+        static auto scenePtr = &scene;
+
 
         // process all input: query GLFW whether relevant keys are pressed/released this frame and react accordingly
         // ---------------------------------------------------------------------------------------------------------
-        const auto processInput = [&](GLFWwindow *window) {
-            if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
-                glfwSetWindowShouldClose(window, true);
+        static bool bCameraUpdated = true;
 
-            if (glfwGetKey(window, GLFW_KEY_F5) == GLFW_PRESS)
-                scene.reloadShaders();
+        glfwSetKeyCallback(window, [](auto window, int key, int scancode, int action, int mods){
+            if (action == GLFW_PRESS) {
+                if (key == GLFW_KEY_ESCAPE)
+                    glfwSetWindowShouldClose(window, true);
+                
+                if (key == GLFW_KEY_F5)
+                    scenePtr->reloadShaders();
+            }
+        });
 
-            glfwGetCursorPos(window, &mousePos.x, &mousePos.y);
-            mousePos = (mousePos / glm::dvec2{SCR_WIDTH, SCR_HEIGHT}) * 2.0 - 1.0;
-            Camera::getGlobalCamera().calcMVP();
-        };
+        glfwSetScrollCallback(window, [](auto window, double y, double x){
+            const auto zoomSpeed = 0.1;
+            auto& zoom = Settings::get().zoom;
+            zoom = std::clamp(zoom + x * zoomSpeed, 0.0, 1.0);
+            bCameraUpdated = true;
+        });
+
+        glfwSetCursorPosCallback(window, [](auto window, double x, double y){
+            auto [width, height, mousePos] = get_multiple<0, 1, 2>(Settings::get().to_tuple());
+            mousePos = (glm::dvec2{x, y} / glm::dvec2{width, height}) * 2.0 - 1.0;
+            bCameraUpdated = true;
+        });
 
 
         std::cout << "Setup took " << appTimer.elapsed<std::chrono::milliseconds>() << "ms." << std::endl;
@@ -196,7 +212,10 @@ int main()
 
             // input
             // -----
-            processInput(window);
+            if (bCameraUpdated) {
+                Camera::getGlobalCamera().calcMVP();
+                bCameraUpdated = false;
+            }
 
             // render
             // ------

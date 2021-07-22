@@ -17,13 +17,14 @@ private:
 
 public:
     void calcMVP() {
-        constexpr auto cameraDist = 1.0f;
+        constexpr auto cameraDist = 2.0f;
         const auto& mousePos = Settings::get().mousePos;
+        const auto& zoom = Settings::get().zoom;
 
         const auto rot = 
             glm::angleAxis(static_cast<float>(mousePos.y), glm::vec3{1.f, 0.f, 0.f}) *
             glm::angleAxis(static_cast<float>(mousePos.x), glm::vec3{0.f, 1.f, 0.f});
-        vMat = glm::translate(glm::mat4{1.f}, glm::vec3{0.f, 0.f, -cameraDist}) * glm::mat4{glm::normalize(rot)};
+        vMat = glm::translate(glm::mat4{1.f}, glm::vec3{0.f, 0.f, std::lerp(-cameraDist, 0.f, static_cast<float>(zoom))}) * glm::mat4{glm::normalize(rot)};
         MVP = pMat * vMat;
         MVPInverse = glm::inverse(MVP);
     }
