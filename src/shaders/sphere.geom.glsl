@@ -11,8 +11,8 @@ in float vRadius[];
 
 uniform mat4 modelViewMatrix;
 uniform mat4 projectionMatrix;
-uniform float radiusScale;
-uniform float clipRadiusScale;
+uniform float radiusScale = 1.0;
+uniform float clipRadiusScale = 1.0;
 uniform float nearPlaneZ = -0.125;
 
 /** The number of sides in the bounding polygon. Must be even. */
@@ -208,11 +208,11 @@ void getBoundsForPhiLengyel(in float phi, in vec3 center, in float radius, in fl
 
 void main()
 {
-	// float sphereClipRadius = clipRadiusScale;
-	
+    float sphereRadius = vRadius[0] * radiusScale;
+    float sphereClipRadius = vRadius[0] * clipRadiusScale;
+
 	gSphereId = gl_PrimitiveIDIn;
 	gSpherePosition = gl_in[0].gl_Position;
-    float sphereRadius = vRadius[0];
 	gSphereRadius = sphereRadius;
 
 	vec4 c = modelViewMatrix * vec4(gl_in[0].gl_Position.xyz,1.0);
@@ -220,11 +220,11 @@ void main()
 	vec4 size = modelViewMatrix * vec4(sphereRadius,0.0,0.0,0.0);
 	float radius = length(size);
 
-	// vec4 clipSize = modelViewMatrix * vec4( sphereClipRadius, 0.0,0.0,0.0);
-	// float clipRadius = length(clipSize);
+	vec4 clipSize = modelViewMatrix * vec4(sphereClipRadius, 0.0,0.0,0.0);
+	float clipRadius = length(clipSize);
 
-	// if (c.z + clipRadius >= nearPlaneZ)
-	// 	return;
+	if (c.z + clipRadius >= nearPlaneZ)
+		return;
 	
     // We'll duplicate the first line into the last spot to avoid modular arithmetic while looping
     line2D  boundingLines[N + 1];
