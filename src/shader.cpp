@@ -51,6 +51,10 @@ std::optional<std::pair<GLenum, int>> Shader::createSubShader(const std::pair<GL
     const auto n = static_cast<std::size_t>(input.tellg());
     source.reserve(n + programDefines.size());
     input.seekg(0, input.beg);
+    // 1. Discard first comment lines (glsl requires #version to be the first line, but this way I can still add file-comments)
+    for (std::string line; input && input.peek() != '#';)
+        input.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
+
     // 1. Read first few #define lines in shader
     for (std::string line; input && input.peek() == '#';) {
         std::getline(input, line);

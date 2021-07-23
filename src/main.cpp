@@ -20,8 +20,6 @@
 #include "settings.h"
 #include "camera.h"
 
-#define ESTR(x) ESPair{x, #x}
-
 template <std::size_t I>
 std::string enumToString(GLenum arg, const std::array<std::pair<GLenum, std::string>, I>& params)
 {
@@ -31,8 +29,6 @@ std::string enumToString(GLenum arg, const std::array<std::pair<GLenum, std::str
     
     return "UNDEFINED";
 }
-
-typedef std::pair<GLenum, std::string> ESPair;
 
 template <typename... T>
 std::string enumToString(GLenum arg, T... params) {

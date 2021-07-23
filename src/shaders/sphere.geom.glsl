@@ -209,7 +209,7 @@ void getBoundsForPhiLengyel(in float phi, in vec3 center, in float radius, in fl
 void main()
 {
     float sphereRadius = vRadius[0] * radiusScale;
-    float sphereClipRadius = vRadius[0] * clipRadiusScale;
+    float sphereClipRadius = sphereRadius * clipRadiusScale;
 
 	gSphereId = gl_PrimitiveIDIn;
 	gSpherePosition = gl_in[0].gl_Position;

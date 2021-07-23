@@ -13,6 +13,9 @@
 #include "components.h"
 #include "zip.hpp"
 
+typedef std::pair<GLenum, std::string> ESPair;
+#define ESTR(x) ESPair{x, #x}
+
 namespace util {
 // Util guard class
 template <typename T>
@@ -39,6 +42,11 @@ public:
     unsigned int id;
     const GLenum type = BufferType;
 
+    void bufferData(std::size_t byteSize, GLenum usage = GL_STATIC_DRAW) {
+        auto g = guard();
+        glBufferData(BufferType, byteSize, nullptr, usage);
+    }
+
     template <typename T>
     void bufferData(const std::vector<T>& data, GLenum usage = GL_STATIC_DRAW) {
         auto g = guard();
@@ -47,6 +55,11 @@ public:
     
     Buffer() {
         glGenBuffers(1, &id);
+    }
+
+    explicit Buffer(std::size_t byteSize, GLenum usage = GL_STATIC_DRAW) {
+        glGenBuffers(1, &id);
+        bufferData(byteSize, usage);
     }
 
     template <typename T>
@@ -84,9 +97,9 @@ public:
         glGenTextures(1, &id);
     }
 
-    void data(GLint level, GLint internalformat, DimType size, GLint border, GLenum format, GLenum type, const void * data) = delete;
+    virtual void data(GLint level, GLint internalformat, DimType size, GLint border, GLenum format, GLenum type, const void * data) = 0;
 
-    void init(DimType size = DimType{}, GLenum internalformat = GL_RGBA16F, GLenum format = GL_RGBA) = delete;
+    virtual void init(DimType size = DimType{}, GLenum internalformat = GL_RGBA16F, GLenum format = GL_RGBA) = 0;
 
     void bind(unsigned int textureUnit = 0) {
         glActiveTexture(GL_TEXTURE0 + textureUnit);
@@ -116,11 +129,11 @@ class Texture : public TextureBase<TextureType, void> {};
 template <>
 class Texture<GL_TEXTURE_2D> : public TextureBase<GL_TEXTURE_2D, glm::ivec2> {
 public:
-    void data(GLint level, GLint internalformat, glm::ivec2 size, GLint border, GLenum format, GLenum type, const void * data) {
+    void data(GLint level, GLint internalformat, glm::ivec2 size, GLint border, GLenum format, GLenum type, const void * data) final {
         glTexImage2D(GL_TEXTURE_2D, level, internalformat, size.x, size.y, border, format, type, data);
     }
 
-    void init(glm::ivec2 size = glm::ivec2{}, GLenum internalformat = GL_RGBA16F, GLenum format = GL_RGBA) {
+    void init(glm::ivec2 size = glm::ivec2{}, GLenum internalformat = GL_RGBA16F, GLenum format = GL_RGBA) final {
         bind();
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
@@ -282,6 +295,7 @@ public:
     auto guard() { return Guard{this}; }
 
     bool valid() const { return bValid; }
+
     std::string completeness();
 
     ~Framebuffer() {

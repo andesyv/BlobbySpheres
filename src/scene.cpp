@@ -11,6 +11,8 @@
 using namespace comp;
 using namespace util;
 
+constexpr auto LIST_MAX_ENTRIES = 128u;
+
 Scene::Scene()
 {
     shaders.insert(std::make_pair("default", Shader{
@@ -34,6 +36,16 @@ Scene::Scene()
             {GL_VERTEX_SHADER, "sphere.vert.glsl"},
             {GL_GEOMETRY_SHADER, "sphere.geom.glsl"},
             {GL_FRAGMENT_SHADER, "sphere.frag.glsl"}
+        }
+    }));
+
+    shaders.insert(std::make_pair("list", Shader{
+        {
+            {GL_VERTEX_SHADER, "sphere.vert.glsl"},
+            {GL_GEOMETRY_SHADER, "sphere.geom.glsl"},
+            {GL_FRAGMENT_SHADER, "list.frag.glsl"}
+        }, {
+            std::format("MAX_ENTRIES {}u", LIST_MAX_ENTRIES)
         }
     }));
 
@@ -85,9 +97,12 @@ Scene::Scene()
         std::make_pair(GL_DEPTH_ATTACHMENT, std::shared_ptr{depthTexture})
     );
     
-    if (!sphereFramebuffer->valid())
-        std::cout << "Framebuffer error: " << sphereFramebuffer->completeness() << std::endl;
-    assert(sphereFramebuffer->valid());
+    assert(sphereFramebuffer->completeness() == "GL_FRAMEBUFFER_COMPLETE");
+
+
+    // SSBOs
+    const std::size_t bufferSize = (sizeof(glm::vec4) * LIST_MAX_ENTRIES + sizeof(glm::uint)) * SCR_WIDTH * SCR_HEIGHT;
+    listBuffer = std::make_shared<Buffer<GL_SHADER_STORAGE_BUFFER>>(bufferSize, GL_DYNAMIC_DRAW);
 }
 
 void Scene::render() {
@@ -100,6 +115,9 @@ void Scene::render() {
     const auto& MVPInverse = cam.getMVPInverse();
     glm::vec4 nearPlane = pMatInverse * glm::vec4(0.0, 0.0, -1.0, 1.0);
 	nearPlane /= nearPlane.w;
+
+    const float innerRadiusScale = 1.f;
+    const float outerRadiusScale = 1.8f;
     
 
     // Sphere pass
@@ -126,8 +144,33 @@ void Scene::render() {
     }
 
 
+    // List pass
+    {
+        glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT);
+        
+        if (!shaders.contains("list"))
+            return;
+            
+        const auto shaderId = *shaders.at("list");
+        glUseProgram(shaderId);
+
+        positionTexture->bind();
+        listBuffer->bindBase();
+        uniform(shaderId, "modelViewMatrix", vMat);
+        uniform(shaderId, "projectionMatrix", pMat);
+        uniform(shaderId, "MVP", MVP);
+        uniform(shaderId, "MVPInverse", MVPInverse);
+        uniform(shaderId, "nearPlaneZ", nearPlane.z);
+        uniform(shaderId, "radiusScale", outerRadiusScale);
+
+        auto g2 = sceneBuffer->guard();
+        glDrawArrays(GL_POINTS, 0, static_cast<GLsizei>(SCENE_SIZE));
+    }
+
+
     // Surface pass
     {
+        glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glDisable(GL_DEPTH_TEST);
         glClear(GL_COLOR_BUFFER_BIT);
@@ -144,8 +187,6 @@ void Scene::render() {
 
         screenMesh.draw();
     }
-
-    // glBindVertexArray(0); // no need to unbind it every time
 }
 
 void Scene::reloadShaders() {

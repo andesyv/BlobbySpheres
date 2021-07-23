@@ -81,20 +81,14 @@ bool Framebuffer::assemble() {
 
 std::string Framebuffer::completeness() {
     auto g = guard();
-    switch (glCheckFramebufferStatus(GL_FRAMEBUFFER)) {
-        case GL_FRAMEBUFFER_COMPLETE:
-            return "Complete!";
-        case GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT:
-            return "GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT";
-        // case GL_FRAMEBUFFER_INCOMPLETE_DIMENSIONS:
-        //     return "GL_FRAMEBUFFER_INCOMPLETE_DIMENSIONS";
-        case GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT:
-            return "GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT";
-        case GL_FRAMEBUFFER_UNSUPPORTED:
-            return "GL_FRAMEBUFFER_UNSUPPORTED";
-        default:
-            return "Unknown error.";
-    }
+    static std::map<GLenum, std::string> errToStr{
+        ESTR(GL_FRAMEBUFFER_COMPLETE),
+        ESTR(GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT),
+        ESTR(GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT),
+        ESTR(GL_FRAMEBUFFER_UNSUPPORTED)
+    };
+    auto pos = errToStr.find(glCheckFramebufferStatus(GL_FRAMEBUFFER));
+    return pos != std::end(errToStr) ? pos->second : "Unknown error.";
 }
 
 }
