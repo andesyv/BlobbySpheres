@@ -23,7 +23,7 @@ private:
 
     std::shared_ptr<util::Tex2D> positionTexture, normalTexture, depthTexture;
     std::shared_ptr<util::Framebuffer> sphereFramebuffer;
-    
+
     std::shared_ptr<util::Buffer<GL_SHADER_STORAGE_BUFFER>> listBuffer;
 
 public:

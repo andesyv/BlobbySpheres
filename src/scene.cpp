@@ -15,6 +15,8 @@ constexpr auto LIST_MAX_ENTRIES = 128u;
 
 Scene::Scene()
 {
+    const auto SCR_SIZE = Settings::get().SCR_SIZE;
+
     shaders.insert(std::make_pair("default", Shader{
         {
             {GL_VERTEX_SHADER, "default.vert.glsl"},
@@ -27,7 +29,9 @@ Scene::Scene()
             {GL_VERTEX_SHADER, "screen.vert.glsl"},
             {GL_FRAGMENT_SHADER, "sdf.frag.glsl"}
         }, {
-            std::format("SCENE_SIZE {}u", SCENE_SIZE)
+            std::format("SCENE_SIZE {}u", SCENE_SIZE),
+            std::format("MAX_ENTRIES {}u", LIST_MAX_ENTRIES),
+            std::format("SCREEN_SIZE uvec2({},{})", SCR_SIZE.x, SCR_SIZE.y)
         }
     }));
 
@@ -45,7 +49,8 @@ Scene::Scene()
             {GL_GEOMETRY_SHADER, "sphere.geom.glsl"},
             {GL_FRAGMENT_SHADER, "list.frag.glsl"}
         }, {
-            std::format("MAX_ENTRIES {}u", LIST_MAX_ENTRIES)
+            std::format("MAX_ENTRIES {}u", LIST_MAX_ENTRIES),
+            std::format("SCREEN_SIZE uvec2({},{})", SCR_SIZE.x, SCR_SIZE.y)
         }
     }));
 
@@ -84,12 +89,10 @@ Scene::Scene()
     sceneBuffer = std::make_unique<VertexArray>(positions);
     sceneBuffer->vertexAttribute(0, 4, GL_FLOAT, GL_FALSE);
 
-    const auto [SCR_WIDTH, SCR_HEIGHT] = get_multiple<0, 1>(Settings::get().to_tuple());
-
     // Framebuffers:
-    positionTexture = std::make_shared<Tex2D>(glm::ivec2{SCR_WIDTH, SCR_HEIGHT});
-    normalTexture = std::make_shared<Tex2D>(glm::ivec2{SCR_WIDTH, SCR_HEIGHT});
-    depthTexture = std::make_shared<Tex2D>(glm::ivec2{SCR_WIDTH, SCR_HEIGHT}, GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT);
+    positionTexture = std::make_shared<Tex2D>(SCR_SIZE);
+    normalTexture = std::make_shared<Tex2D>(SCR_SIZE);
+    depthTexture = std::make_shared<Tex2D>(SCR_SIZE, GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT);
 
     sphereFramebuffer = std::make_shared<Framebuffer>(
         std::make_pair(GL_COLOR_ATTACHMENT0, std::shared_ptr{positionTexture}),
@@ -101,7 +104,7 @@ Scene::Scene()
 
 
     // SSBOs
-    const std::size_t bufferSize = (sizeof(glm::vec4) * LIST_MAX_ENTRIES + sizeof(glm::uint)) * SCR_WIDTH * SCR_HEIGHT;
+    const std::size_t bufferSize = (sizeof(glm::vec4) * LIST_MAX_ENTRIES + sizeof(glm::uint)) * SCR_SIZE.x * SCR_SIZE.y;
     listBuffer = std::make_shared<Buffer<GL_SHADER_STORAGE_BUFFER>>(bufferSize, GL_DYNAMIC_DRAW);
 }
 
@@ -117,7 +120,7 @@ void Scene::render() {
 	nearPlane /= nearPlane.w;
 
     const float innerRadiusScale = 1.f;
-    const float outerRadiusScale = 1.8f;
+    const float outerRadiusScale = 1.4f;
     
 
     // Sphere pass
@@ -146,7 +149,7 @@ void Scene::render() {
 
     // List pass
     {
-        glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT);
+        glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT);        
         
         if (!shaders.contains("list"))
             return;
@@ -156,6 +159,8 @@ void Scene::render() {
 
         positionTexture->bind();
         listBuffer->bindBase();
+        glClearBufferData(GL_SHADER_STORAGE_BUFFER, GL_R8, GL_RED, GL_UNSIGNED_INT, 0);
+
         uniform(shaderId, "modelViewMatrix", vMat);
         uniform(shaderId, "projectionMatrix", pMat);
         uniform(shaderId, "MVP", MVP);
@@ -170,18 +175,20 @@ void Scene::render() {
 
     // Surface pass
     {
-        glMemoryBarrier(GL_SHADER_STORAGE_BARRIER_BIT);
+        glMemoryBarrier(GL_ALL_BARRIER_BITS);
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glDisable(GL_DEPTH_TEST);
         glClear(GL_COLOR_BUFFER_BIT);
 
         if (!shaders.contains("surface"))
-                return;
+            return;
             
         const auto shaderId = *shaders.at("surface");
         glUseProgram(shaderId);
 
         positionTexture->bind();
+        listBuffer->bindBase();
+        // glClearBufferData(GL_SHADER_STORAGE_BUFFER, GL_R8, GL_RED, GL_UNSIGNED_INT, 0);
         uniform(shaderId, "MVPInverse", MVPInverse);
         uniform(shaderId, "time", runningTime);
 

@@ -59,7 +59,7 @@ int main()
 {
     Timer appTimer{};
     std::srand(std::time(nullptr));
-    auto [SCR_WIDTH, SCR_HEIGHT, runningTime] = get_multiple<0, 1, 3>(Settings::get().to_tuple());
+    auto [SCR_SIZE, runningTime] = get_multiple<0, 2>(Settings::get().to_tuple());
  
     // glfw: initialize and configure
     // ------------------------------
@@ -75,7 +75,7 @@ int main()
 
     // glfw window creation
     // --------------------
-    GLFWwindow *window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "BlobbySpheres", NULL, NULL);
+    GLFWwindow *window = glfwCreateWindow(SCR_SIZE.x, SCR_SIZE.y, "BlobbySpheres", NULL, NULL);
     if (window == NULL)
     {
         std::cout << "Failed to create GLFW window" << std::endl;
@@ -85,17 +85,17 @@ int main()
     glfwMakeContextCurrent(window);
     // glfw: whenever the window size changed (by OS or user resize) this callback function executes
     // ---------------------------------------------------------------------------------------------
-    static const auto persp = [](int w, int h) { return glm::perspective(30.f, static_cast<float>(w) / h, 0.1f, 100.f); };
-    Camera::getGlobalCamera().setPMat(persp(SCR_WIDTH, SCR_HEIGHT));
+    static const auto persp = [](glm::ivec2 size) { return glm::perspective(30.f, static_cast<float>(size.x) / size.y, 0.1f, 100.f); };
+    Camera::getGlobalCamera().setPMat(persp(SCR_SIZE));
     static auto framebuffer_size_callback = [](GLFWwindow *window, int w, int h) {
         // make sure the viewport matches the new window dimensions; note that width and
         // height will be significantly larger than specified on retina displays.
-        auto [width, height] = get_multiple<0, 1>(Settings::get().to_tuple());
-        width = static_cast<unsigned int>(w);
-        height = static_cast<unsigned int>(h);
+        auto& size = Settings::get().SCR_SIZE;
+        size.x = static_cast<unsigned int>(w);
+        size.y = static_cast<unsigned int>(h);
         glViewport(0, 0, w, h);
 
-        Camera::getGlobalCamera().setPMat(persp(w, h));
+        Camera::getGlobalCamera().setPMat(persp({w, h}));
     };
 
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
@@ -184,8 +184,8 @@ int main()
         });
 
         glfwSetCursorPosCallback(window, [](auto window, double x, double y){
-            auto [width, height, mousePos] = get_multiple<0, 1, 2>(Settings::get().to_tuple());
-            mousePos = (glm::dvec2{x, y} / glm::dvec2{width, height}) * 2.0 - 1.0;
+            auto [size, mousePos] = get_multiple<0, 1>(Settings::get().to_tuple());
+            mousePos = (glm::dvec2{x, y} / glm::dvec2{size}) * 2.0 - 1.0;
             bCameraUpdated = true;
         });
 

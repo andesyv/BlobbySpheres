@@ -12,7 +12,7 @@ uniform mat4 MVPInverse;
 
 layout(binding = 0) uniform sampler2D positionTexture;
 
-struct BufferEntry
+struct FragmentEntry
 {
 	vec4 pos[MAX_ENTRIES];
 	uint count;
@@ -20,7 +20,7 @@ struct BufferEntry
 
 layout(std430, binding = 0) buffer intersectionBuffer
 {
-	BufferEntry intersections[];
+	FragmentEntry intersections[];
 };
 
 struct Sphere
@@ -81,10 +81,11 @@ void main()
 	
 	float dist = length(sphere.near.xyz-near.xyz);
 	
-	if (dist > position.w)
-		discard;
+	// if (dist > position.w)
+	// 	discard;
 
-	uint intersectionIndex = uint(gl_FragCoord.x) * uint(gl_FragCoord.y);
+	uint intersectionIndex = uint(gl_FragCoord.x) + uint(gl_FragCoord.y) * SCREEN_SIZE.x;
+	// Note: Prone to integer overflow:
 	uint index = atomicAdd(intersections[intersectionIndex].count, 1);
 	if (MAX_ENTRIES <= index)
 		discard;
