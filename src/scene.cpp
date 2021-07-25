@@ -7,6 +7,7 @@
 #include <vector>
 #include <glm/gtc/random.hpp>
 #include <glm/glm.hpp>
+#include <imgui.h>
 
 using namespace comp;
 using namespace util;
@@ -108,6 +109,14 @@ Scene::Scene()
     listBuffer = std::make_shared<Buffer<GL_SHADER_STORAGE_BUFFER>>(bufferSize, GL_DYNAMIC_DRAW);
 }
 
+void Scene::reloadShaders() {
+    std::cout << "Reloading shaders!" << std::endl;
+
+    for (auto& [name, program] : shaders)
+        if (!program.reload())
+            std::cout << std::format("Reloading \"{}\" shader failed!", name) << std::endl;
+}
+
 void Scene::render() {
     const auto runningTime = Settings::get().runningTime;
     const auto& cam = Camera::getGlobalCamera();
@@ -120,7 +129,14 @@ void Scene::render() {
 	nearPlane /= nearPlane.w;
 
     const float innerRadiusScale = 1.f;
-    const float outerRadiusScale = 1.4f;
+    static float outerRadiusScale = 1.f;
+
+    // Gui:
+    if (ImGui::BeginMenu("Scene")) {
+        ImGui::SliderFloat("Radius", &outerRadiusScale, 0.f, 10.f);
+
+        ImGui::EndMenu();
+    }
     
 
     // Sphere pass
@@ -188,18 +204,9 @@ void Scene::render() {
 
         positionTexture->bind();
         listBuffer->bindBase();
-        // glClearBufferData(GL_SHADER_STORAGE_BUFFER, GL_R8, GL_RED, GL_UNSIGNED_INT, 0);
         uniform(shaderId, "MVPInverse", MVPInverse);
         uniform(shaderId, "time", runningTime);
 
         screenMesh.draw();
     }
-}
-
-void Scene::reloadShaders() {
-    std::cout << "Reloading shaders!" << std::endl;
-
-    for (auto& [name, program] : shaders)
-        if (!program.reload())
-            std::cout << std::format("Reloading \"{}\" shader failed!", name) << std::endl;
 }

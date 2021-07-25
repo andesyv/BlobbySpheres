@@ -1,3 +1,8 @@
+#define IMGUI_IMPL_OPENGL_LOADER_GLAD
+#include "imgui.h"
+#include "backends/imgui_impl_glfw.h"
+#include "backends/imgui_impl_opengl3.h"
+
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <entt/entt.hpp> // https://github.com/skypjack/entt
@@ -153,6 +158,22 @@ int main()
     glDebugMessageCallback(errorCallback, nullptr);
 
 
+    // Dear ImGui: Setup context
+    // --------------------------------------------------------------------
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    // ImGuiIO& io = ImGui::GetIO();
+    //io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
+
+    // Setup Dear ImGui style
+    ImGui::StyleColorsDark();
+
+    // Setup Platform/Renderer backends
+    ImGui_ImplGlfw_InitForOpenGL(window, true);
+    ImGui_ImplOpenGL3_Init("#version 450");
+
+
+
     {
         // uncomment this call to draw in wireframe polygons.
         //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
@@ -203,10 +224,18 @@ int main()
             const auto deltaTime = frameTimer.elapsed<std::chrono::milliseconds>() * 0.001f;
             frameTimer.reset();
             runningTime = appTimer.elapsed<std::chrono::milliseconds>() * 0.001f;
+            
+            glfwPollEvents();
 
             showFPS(window);
 
-            // input
+            // Start the Dear ImGui frame
+            ImGui_ImplOpenGL3_NewFrame();
+            ImGui_ImplGlfw_NewFrame();
+            ImGui::NewFrame();
+            ImGui::BeginMainMenuBar();
+
+            // Input
             // -----
             if (bCameraUpdated) {
                 Camera::getGlobalCamera().calcMVP();
@@ -217,12 +246,23 @@ int main()
             // ------
             scene.render();
 
+            // ImGui render UI:
+            ImGui::EndMainMenuBar();
+            ImGui::Render();
+            ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
             // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved etc.)
             // -------------------------------------------------------------------------------
             glfwSwapBuffers(window);
-            glfwPollEvents();
         }
     }
+
+
+    // Dear ImGui: Cleanup
+    // -------------------
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
 
     // glfw: terminate, clearing all previously allocated GLFW resources.
     // ------------------------------------------------------------------

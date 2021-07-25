@@ -21,3 +21,14 @@ target_include_directories(BlobbySpheres PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/glm
 
 # ENTT
 target_include_directories(BlobbySpheres PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/entt/src)
+
+# Dear ImGui
+target_include_directories(BlobbySpheres PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/imgui)
+target_sources(BlobbySpheres PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/imgui/imgui.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/imgui/imgui_draw.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/imgui/imgui_widgets.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/imgui/imgui_tables.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/imgui/backends/imgui_impl_glfw.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/imgui/backends/imgui_impl_opengl3.cpp
+)
