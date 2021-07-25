@@ -7,15 +7,12 @@
 #include <GLFW/glfw3.h>
 #include <entt/entt.hpp> // https://github.com/skypjack/entt
 #include <glm/glm.hpp>   // https://github.com/g-truc/glm
-#include <glm/gtc/random.hpp>
 
-#include <array>
-#include <chrono> // Timers
 #include <iostream>
+#include <array>
 #include <cassert>
-#include <random>
+#include <random> // For random seeding
 #include <ctime> // For random seeding
-#include <format>
 
 #include "shader.h"
 #include "timer.h"
@@ -49,7 +46,7 @@ void showFPS(GLFWwindow* window)
     if (elapsed >= 1000)
     {
         const auto fps = frameCount * 1000.f / elapsed;
-        std::string title{"VSCodeOpenGL, fps: " + std::to_string(fps)};
+        std::string title{"BlobbySpheres, fps: " + std::to_string(fps)};
         glfwSetWindowTitle(window, title.c_str());
         frameCount = 0;
         timer.reset();

@@ -11,7 +11,6 @@
 #include <algorithm>
 
 #include "components.h"
-#include "zip.hpp"
 
 typedef std::pair<GLenum, std::string> ESPair;
 #define ESTR(x) ESPair{x, #x}

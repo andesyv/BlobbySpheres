@@ -5,6 +5,7 @@
 
 #include <format>
 #include <vector>
+#include <iostream>
 #include <glm/gtc/random.hpp>
 #include <glm/glm.hpp>
 #include <imgui.h>
@@ -12,6 +13,7 @@
 using namespace comp;
 using namespace util;
 
+constexpr std::size_t SCENE_SIZE = 1000u;
 constexpr auto LIST_MAX_ENTRIES = 128u;
 
 Scene::Scene()
@@ -77,6 +79,8 @@ Scene::Scene()
 
 
     // Setup scene
+    std::array<glm::vec4, SCENE_SIZE> positions;
+
     for (unsigned int i = 0; i < SCENE_SIZE; ++i) {
         auto entity = EM.create();
 

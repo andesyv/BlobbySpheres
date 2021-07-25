@@ -6,6 +6,12 @@ project(BlobbySpheres)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+option(PARALLEL_BUILDING "Enable building using multiple cores" ON)
+if (PARALLEL_BUILDING)
+    set(PARALLEL_BUILDING_COUNT 8 CACHE STRING "How many max cores to simultaneous utilize (number)")
+    set(CMAKE_BUILD_PARALLEL_LEVEL, PARALLEL_BUILDING_COUNT)
+endif()
+
 # Output executable
 add_executable(BlobbySpheres)
 

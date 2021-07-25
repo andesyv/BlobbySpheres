@@ -1,7 +1,7 @@
-#pragma once
+#ifndef SHADER_H
+#define SHADER_H
 
 #include <string>
-#include <iostream>
 #include <optional>
 #include <map>
 #include <set>
@@ -112,3 +112,5 @@ public:
 
     ~Shader();
 };
+
+#endif // SHADER_H
