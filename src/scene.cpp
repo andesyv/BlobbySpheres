@@ -133,11 +133,13 @@ void Scene::render() {
 	nearPlane /= nearPlane.w;
 
     const float innerRadiusScale = 1.f;
-    static float outerRadiusScale = 1.f;
+    static float outerRadiusScale = 2.5f;
+    static float smoothing = 0.04f;
 
     // Gui:
     if (ImGui::BeginMenu("Scene")) {
         ImGui::SliderFloat("Radius", &outerRadiusScale, 0.f, 10.f);
+        ImGui::SliderFloat("Smoothing Factor", &smoothing, 0.f, 4.f);
 
         ImGui::EndMenu();
     }
@@ -210,6 +212,7 @@ void Scene::render() {
         listBuffer->bindBase();
         uniform(shaderId, "MVPInverse", MVPInverse);
         uniform(shaderId, "time", runningTime);
+        uniform(shaderId, "smoothing", smoothing);
 
         screenMesh.draw();
     }

@@ -5,6 +5,7 @@ layout(origin_upper_left, pixel_center_integer) in vec4 gl_FragCoord;
 in vec4 gFragmentPosition;
 flat in vec4 gSpherePosition;
 flat in float gSphereRadius;
+flat in float gOuterRadius;
 flat in uint gSphereId;
 
 uniform mat4 MVP;
@@ -72,7 +73,7 @@ void main()
 	far /= far.w;
 
 	vec3 V = normalize(far.xyz-near.xyz);	
-	Sphere sphere = calcSphereIntersection(gSphereRadius, near.xyz, gSpherePosition.xyz, V);
+	Sphere sphere = calcSphereIntersection(gOuterRadius, near.xyz, gSpherePosition.xyz, V);
 	
 	if (!sphere.hit)
 		discard;

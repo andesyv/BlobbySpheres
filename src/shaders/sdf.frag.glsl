@@ -10,6 +10,7 @@ in vec2 ndc;
 
 uniform mat4 MVPInverse = mat4(1.0);
 uniform float time = 0.0;
+uniform float smoothing = 0.13;
 
 layout(location = 0) uniform sampler2D positionTex; 
 
@@ -47,8 +48,8 @@ float sdf(in vec4 entries[MAX_ENTRIES], uint entryCount, vec3 p) {
     else {
         float m = sdfSphere(entries[0].xyz, entries[0].w, p);
         for (uint i = 1u; i < entryCount; ++i)
-            // m = smin(m, sdfSphere(entries[i].xyz, entries[i].w, p), 0.13);
-            m = min(m, sdfSphere(entries[i].xyz, entries[i].w, p));
+            m = smin(m, sdfSphere(entries[i].xyz, entries[i].w, p), smoothing);
+            // m = min(m, sdfSphere(entries[i].xyz, entries[i].w, p));
         return m;
     }
 }
