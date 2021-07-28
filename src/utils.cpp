@@ -47,6 +47,33 @@ template <> void uniform<glm::mat4>(unsigned int location, const glm::mat4& valu
 
 
 
+template <> int getOpenGLParam(GLenum param) {
+    int data;
+    glGetIntegerv(param, &data);
+    return data;
+}
+
+template <> double getOpenGLParam(GLenum param) {
+    double data;
+    glGetDoublev(param, &data);
+    return data;
+}
+
+template <> float getOpenGLParam(GLenum param) {
+    float data;
+    glGetFloatv(param, &data);
+    return data;
+}
+
+template <> GLboolean getOpenGLParam(GLenum param) {
+    GLboolean data;
+    glGetBooleanv(param, &data);
+    return data;
+}
+
+
+
+
 
 bool Framebuffer::assemble() {
     // Atleast one color and depth attachment is required by OpenGL

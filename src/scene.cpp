@@ -14,7 +14,7 @@ using namespace comp;
 using namespace util;
 
 constexpr std::size_t SCENE_SIZE = 1000u;
-constexpr auto LIST_MAX_ENTRIES = 128u;
+constexpr auto LIST_MAX_ENTRIES = 14u;
 
 Scene::Scene()
 {
@@ -24,17 +24,6 @@ Scene::Scene()
         {
             {GL_VERTEX_SHADER, "default.vert.glsl"},
             {GL_FRAGMENT_SHADER, "default.frag.glsl"}
-        }
-    }));
-
-    shaders.insert(std::make_pair("surface", Shader{
-        {
-            {GL_VERTEX_SHADER, "screen.vert.glsl"},
-            {GL_FRAGMENT_SHADER, "sdf.frag.glsl"}
-        }, {
-            std::format("SCENE_SIZE {}u", SCENE_SIZE),
-            std::format("MAX_ENTRIES {}u", LIST_MAX_ENTRIES),
-            std::format("SCREEN_SIZE uvec2({},{})", SCR_SIZE.x, SCR_SIZE.y)
         }
     }));
 
@@ -52,6 +41,22 @@ Scene::Scene()
             {GL_GEOMETRY_SHADER, "sphere.geom.glsl"},
             {GL_FRAGMENT_SHADER, "list.frag.glsl"}
         }, {
+            std::format("MAX_ENTRIES {}u", LIST_MAX_ENTRIES),
+            std::format("SCREEN_SIZE uvec2({},{})", SCR_SIZE.x, SCR_SIZE.y)
+        }
+    }));
+
+    int param{0};
+    glGetIntegerv(GL_MAX_VERTEX_ATTRIBS, &param);
+    assert(2 + LIST_MAX_ENTRIES <= param);
+
+    shaders.insert(std::make_pair("surface", Shader{
+        {
+            {GL_VERTEX_SHADER, "pixelquads.vert.glsl"},
+            {GL_GEOMETRY_SHADER, "pixelquad.geom.glsl"},
+            {GL_FRAGMENT_SHADER, "sdf.frag.glsl"}
+        }, {
+            std::format("SCENE_SIZE {}u", SCENE_SIZE),
             std::format("MAX_ENTRIES {}u", LIST_MAX_ENTRIES),
             std::format("SCREEN_SIZE uvec2({},{})", SCR_SIZE.x, SCR_SIZE.y)
         }
@@ -109,8 +114,17 @@ Scene::Scene()
 
 
     // SSBOs
-    const std::size_t bufferSize = (sizeof(glm::vec4) * LIST_MAX_ENTRIES + sizeof(glm::uint)) * SCR_SIZE.x * SCR_SIZE.y;
+    const std::size_t bufferSize = (sizeof(glm::vec4) * LIST_MAX_ENTRIES + sizeof(glm::uvec4)) * SCR_SIZE.x * SCR_SIZE.y;
     listBuffer = std::make_shared<Buffer<GL_SHADER_STORAGE_BUFFER>>(bufferSize, GL_DYNAMIC_DRAW);
+
+    // listPixelBuffer = std::make_unique<VertexArray>();
+    // auto g = listBuffer->guard();
+    // listPixelBuffer->vertexAttribute(0, 1, GL_UNSIGNED_INT, GL_FALSE); // count
+    // listPixelBuffer->vertexAttribute(1, 2, GL_UNSIGNED_INT, GL_FALSE); // screenCoord
+    // for (GLuint i{0}; i < LIST_MAX_ENTRIES; ++i) // pos[MAX_ENTRIES]
+    //     listPixelBuffer->vertexAttribute(2 + i, 4, GL_FLOAT, GL_FALSE);
+    
+    glBindVertexArray(0);
 }
 
 void Scene::reloadShaders() {
@@ -123,6 +137,7 @@ void Scene::reloadShaders() {
 
 void Scene::render() {
     const auto runningTime = Settings::get().runningTime;
+    const auto SCR_SIZE = Settings::get().SCR_SIZE;
     const auto& cam = Camera::getGlobalCamera();
     const auto& pMat = cam.getPMat();
     const auto& pMatInverse = cam.getPMatInverse();
@@ -197,6 +212,7 @@ void Scene::render() {
 
     // Surface pass
     {
+        // glMemoryBarrier(GL_VERTEX_ATTRIB_ARRAY_BARRIER_BIT​);
         glMemoryBarrier(GL_ALL_BARRIER_BITS);
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glDisable(GL_DEPTH_TEST);
@@ -208,12 +224,22 @@ void Scene::render() {
         const auto shaderId = *shaders.at("surface");
         glUseProgram(shaderId);
 
+        auto vao = std::make_unique<VertexArray>();
+        glBindBuffer(GL_ARRAY_BUFFER, listBuffer->id); // Bind as VBO
+        vao->vertexAttribute(0, 1, GL_UNSIGNED_INT, GL_FALSE); // count
+        vao->vertexAttribute(1, 2, GL_UNSIGNED_INT, GL_FALSE); // screenCoord
+        for (GLuint i{0}; i < LIST_MAX_ENTRIES; ++i) // pos[MAX_ENTRIES]
+            vao->vertexAttribute(2 + i, 4, GL_FLOAT, GL_FALSE);
+
         positionTexture->bind();
-        listBuffer->bindBase();
+        auto v = vao->guard();
+        // listBuffer->bindBase();
         uniform(shaderId, "MVPInverse", MVPInverse);
         uniform(shaderId, "time", runningTime);
         uniform(shaderId, "smoothing", smoothing);
 
-        screenMesh.draw();
+        glDrawArrays(GL_POINTS, 0, SCR_SIZE.x * SCR_SIZE.y);
+
+        // screenMesh.draw();
     }
 }

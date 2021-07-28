@@ -6,24 +6,21 @@
 
 layout(origin_upper_left, pixel_center_integer) in vec4 gl_FragCoord;
 
+struct FragmentEntry
+{
+	uint count;
+    uvec2 screenCoord;
+	vec4 pos[MAX_ENTRIES];
+};
+
 in vec2 ndc;
+flat in FragmentEntry gEntry;
 
 uniform mat4 MVPInverse = mat4(1.0);
 uniform float time = 0.0;
 uniform float smoothing = 0.13;
 
-layout(location = 0) uniform sampler2D positionTex; 
-
-struct FragmentEntry
-{
-	vec4 pos[MAX_ENTRIES];
-	uint count;
-};
-
-layout(std430, binding = 0) buffer intersectionBuffer
-{
-	FragmentEntry intersections[];
-};
+layout(location = 0) uniform sampler2D positionTex;
 
 out vec4 fragColor;
 
@@ -64,6 +61,9 @@ vec3 gradient(in vec4 entries[MAX_ENTRIES], uint entryCount, vec3 p) {
 
 void main()
 {
+    // if (gEntry.screenCoord.x != uint(gl_FragCoord.x) || gEntry.screenCoord.y != uint(gl_FragCoord.y))
+    //     discard;
+
     // Near and far plane
     vec4 near = MVPInverse * vec4(ndc, -1., 1.0);
     near /= near.w;
@@ -73,38 +73,33 @@ void main()
     vec4 ro = vec4(near.xyz, 0.0);
     vec4 rd = vec4(normalize((far - near).xyz), 1.0);
 
-    float t4 = time / 4.0;
-    float t3 = time / 3.0;
+    // float t4 = time / 4.0;
+    // float t3 = time / 3.0;
 
-    uint intersectionIndex = uint(gl_FragCoord.x) + uint(gl_FragCoord.y) * SCREEN_SIZE.x;
+    // uint entryCount = min(gEntry.count, MAX_ENTRIES);
 
-    uint entryCount = min(intersections[intersectionIndex].count, MAX_ENTRIES);
+    // if (entryCount != 0) {
+    //     vec4 p = ro;
+    //     for (uint i = 0u; i < MAX_STEPS; ++i) {
+    //         float dist = sdf(gEntry.pos, entryCount, p.xyz);
 
-    if (entryCount != 0) {
-        vec4 entries[MAX_ENTRIES];
-        for (int i = 0; i < entryCount; ++i)
-            entries[i] = intersections[intersectionIndex].pos[i];
+    //         if (1000.0 <= dist)
+    //             break;
 
-        vec4 p = ro;
-        for (uint i = 0u; i < MAX_STEPS; ++i) {
-            float dist = sdf(entries, entryCount, p.xyz);
+    //         if (dist < EPSILON) {
+    //             vec3 grad = gradient(gEntry.pos, entryCount, p.xyz);
+    //             vec3 lightDir = rd.xyz;
+    //             vec3 normal = normalize(grad);
+    //             vec3 phong = vec3(1.0, 0.0, 0.0) * max(dot(normal, -lightDir), 0.15);
+    //             fragColor = vec4(phong, 1.0);
+    //             // fragColor = vec4(vec3(p.w + dist), 1.0);
+    //             return;
+    //         }
 
-            if (1000.0 <= dist)
-                break;
+    //         p += rd * dist;
+    //     }
+    // }
 
-            if (dist < EPSILON) {
-                vec3 grad = gradient(entries, entryCount, p.xyz);
-                vec3 lightDir = rd.xyz;
-                vec3 normal = normalize(grad);
-                vec3 phong = vec3(1.0, 0.0, 0.0) * max(dot(normal, -lightDir), 0.15);
-                fragColor = vec4(phong, 1.0);
-                // fragColor = vec4(vec3(p.w + dist), 1.0);
-                return;
-            }
-
-            p += rd * dist;
-        }
-    }
-
-    fragColor = vec4(abs(rd.xyz) * 0.6, 1.0);
+    // fragColor = vec4(abs(rd.xyz) * 0.6, 1.0);
+    fragColor = vec4(vec3(gEntry.count), 1.0);
 }

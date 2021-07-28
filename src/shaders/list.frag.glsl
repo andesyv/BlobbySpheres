@@ -15,8 +15,9 @@ layout(binding = 0) uniform sampler2D positionTexture;
 
 struct FragmentEntry
 {
-	vec4 pos[MAX_ENTRIES];
 	uint count;
+	uvec2 screenCoord;
+	vec4 pos[MAX_ENTRIES];
 };
 
 layout(std430, binding = 0) buffer intersectionBuffer
@@ -92,6 +93,8 @@ void main()
 		discard;
 
 	intersections[intersectionIndex].pos[index] = vec4(gSpherePosition.xyz, gSphereRadius);
+	// No worry about race conditions because everyone will write the same value:
+	intersections[intersectionIndex].screenCoord = uvec2(gl_FragCoord.xy);
 
 	discard;
 }

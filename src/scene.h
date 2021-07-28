@@ -20,6 +20,7 @@ private:
     std::shared_ptr<util::Framebuffer> sphereFramebuffer;
 
     std::shared_ptr<util::Buffer<GL_SHADER_STORAGE_BUFFER>> listBuffer;
+    std::unique_ptr<util::VertexArray> listPixelBuffer;
 
 public:
     Scene();

@@ -40,16 +40,19 @@ class Buffer {
 public:
     unsigned int id;
     const GLenum type = BufferType;
+    std::size_t bufferSize{0};
 
     void bufferData(std::size_t byteSize, GLenum usage = GL_STATIC_DRAW) {
+        bufferSize = byteSize;
         auto g = guard();
-        glBufferData(BufferType, byteSize, nullptr, usage);
+        glBufferData(BufferType, bufferSize, nullptr, usage);
     }
 
     template <typename T>
     void bufferData(const std::vector<T>& data, GLenum usage = GL_STATIC_DRAW) {
+        bufferSize = sizeof(T) * data.size();
         auto g = guard();
-        glBufferData(BufferType, sizeof(T) * data.size(), data.data(), usage);
+        glBufferData(BufferType, bufferSize, data.data(), usage);
     }
     
     Buffer() {
@@ -73,6 +76,10 @@ public:
 
     void unbind() {
         glBindBuffer(BufferType, 0);
+    }
+
+    std::size_t size() const {
+        return bufferSize;
     }
 
     auto guard() { return Guard{this}; }
@@ -169,6 +176,11 @@ public:
     unsigned int id;
     std::unique_ptr<Buffer<GL_ARRAY_BUFFER>> vertexBuffer;
     std::unique_ptr<Buffer<GL_ELEMENT_ARRAY_BUFFER>> indexBuffer;
+
+    explicit VertexArray() : bInit{true} {
+        glGenVertexArrays(1, &id);
+        glBindVertexArray(id);
+    }
     
     template <typename T>
     VertexArray(const std::vector<T>& vertices) : bInit{true} {
@@ -357,6 +369,13 @@ auto collect(R&& r) {
     std::ranges::copy(r, std::back_inserter(v));
     return v;
 }
+
+template <typename T>
+T getOpenGLParam(GLenum param) = delete;
+template <> int getOpenGLParam(GLenum param);
+template <> double getOpenGLParam(GLenum param);
+template <> float getOpenGLParam(GLenum param);
+template <> GLboolean getOpenGLParam(GLenum param);
 
 }
 
