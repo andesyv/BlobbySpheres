@@ -45,11 +45,23 @@ void showFPS(GLFWwindow* window)
     auto elapsed = timer.elapsed<std::chrono::milliseconds>();
     if (elapsed >= 1000)
     {
+        // FPS
         const auto fps = frameCount * 1000.f / elapsed;
-        std::string title{"BlobbySpheres, fps: " + std::to_string(fps)};
-        glfwSetWindowTitle(window, title.c_str());
         frameCount = 0;
         timer.reset();
+
+        std::string title = std::format("BlobbySpheres, fps: {}", fps);
+
+        // Profiler
+        const auto profiles = Profiler::get().getAvgTimesReset();
+        if (!profiles.empty()) {
+            title.reserve(util::arrSize(", Profiling: ") + title.size() + profiles.size() * util::arrSize("{00.00ms},"));
+            title += ", Profiling: ";
+            for (const auto& p : profiles)
+                title += std::format("{{{}ms}},", util::to_string_with_precision(p * 0.001, 2));
+        }
+
+        glfwSetWindowTitle(window, title.c_str());
     }
     ++frameCount;
 }
@@ -238,6 +250,9 @@ int main()
                 Camera::getGlobalCamera().calcMVP();
                 bCameraUpdated = false;
             }
+
+            // Start profiler frame:
+            Profiler::get().newFrame();
 
             // render
             // ------

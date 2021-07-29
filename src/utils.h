@@ -9,6 +9,7 @@
 #include <array>
 #include <ranges>
 #include <algorithm>
+#include <sstream>
 
 #include "components.h"
 
@@ -356,6 +357,22 @@ auto collect(R&& r) {
     
     std::ranges::copy(r, std::back_inserter(v));
     return v;
+}
+
+template <typename T, std::size_t N>
+constexpr auto arrSize(const T (&arr)[N]) { return N; }
+
+// Specialization that removes \0 from str literal
+template <std::size_t N>
+constexpr auto arrSize(const char (&arr)[N]) { return N-1; }
+
+template <typename T>
+std::string to_string_with_precision(const T a_value, const int n = 6)
+{
+    std::ostringstream out;
+    out.precision(n);
+    out << std::fixed << a_value;
+    return out.str();
 }
 
 }
