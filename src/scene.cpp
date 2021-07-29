@@ -13,8 +13,9 @@
 using namespace comp;
 using namespace util;
 
-constexpr std::size_t SCENE_SIZE = 1000u;
+constexpr glm::uint SCENE_SIZE = 100;
 constexpr auto LIST_MAX_ENTRIES = 128u;
+constexpr float FAR_DIST = 1000.f;
 
 Scene::Scene()
 {
@@ -24,17 +25,6 @@ Scene::Scene()
         {
             {GL_VERTEX_SHADER, "default.vert.glsl"},
             {GL_FRAGMENT_SHADER, "default.frag.glsl"}
-        }
-    }));
-
-    shaders.insert(std::make_pair("surface", Shader{
-        {
-            {GL_VERTEX_SHADER, "screen.vert.glsl"},
-            {GL_FRAGMENT_SHADER, "sdf.frag.glsl"}
-        }, {
-            std::format("SCENE_SIZE {}u", SCENE_SIZE),
-            std::format("MAX_ENTRIES {}u", LIST_MAX_ENTRIES),
-            std::format("SCREEN_SIZE uvec2({},{})", SCR_SIZE.x, SCR_SIZE.y)
         }
     }));
 
@@ -52,6 +42,17 @@ Scene::Scene()
             {GL_GEOMETRY_SHADER, "sphere.geom.glsl"},
             {GL_FRAGMENT_SHADER, "list.frag.glsl"}
         }, {
+            std::format("MAX_ENTRIES {}u", LIST_MAX_ENTRIES),
+            std::format("SCREEN_SIZE uvec2({},{})", SCR_SIZE.x, SCR_SIZE.y)
+        }
+    }));
+
+    shaders.insert(std::make_pair("surface", Shader{
+        {
+            {GL_VERTEX_SHADER, "screen.vert.glsl"},
+            {GL_FRAGMENT_SHADER, "sdf.frag.glsl"}
+        }, {
+            std::format("SCENE_SIZE {}u", SCENE_SIZE),
             std::format("MAX_ENTRIES {}u", LIST_MAX_ENTRIES),
             std::format("SCREEN_SIZE uvec2({},{})", SCR_SIZE.x, SCR_SIZE.y)
         }
@@ -79,16 +80,17 @@ Scene::Scene()
 
 
     // Setup scene
-    std::array<glm::vec4, SCENE_SIZE> positions;
+    std::vector<glm::vec4> positions;
+    positions.reserve(SCENE_SIZE);
 
-    for (unsigned int i = 0; i < SCENE_SIZE; ++i) {
+    for (glm::uint i = 0; i < SCENE_SIZE; ++i) {
         auto entity = EM.create();
 
         const auto pos = glm::ballRand(0.5f);
         const auto radius = glm::linearRand(0.01f, 0.1f);
 
         EM.emplace<Sphere>(entity, pos, radius);
-        positions.at(i) = glm::vec4{pos, radius};
+        positions.emplace_back(pos, radius);
     }
 
     sceneBuffer = std::make_unique<VertexArray>(positions);
@@ -129,8 +131,8 @@ void Scene::render() {
     const auto& vMat = cam.getVMat();
     const auto& MVP = cam.getMVP();
     const auto& MVPInverse = cam.getMVPInverse();
-    glm::vec4 nearPlane = pMatInverse * glm::vec4(0.0, 0.0, -1.0, 1.0);
-	nearPlane /= nearPlane.w;
+    glm::vec4 clipNearPlane = pMatInverse * glm::vec4(0.0, 0.0, -1.0, 1.0);
+	clipNearPlane /= clipNearPlane.w;
 
     const float innerRadiusScale = 1.f;
     static float outerRadiusScale = 2.5f;
@@ -143,12 +145,12 @@ void Scene::render() {
 
         ImGui::EndMenu();
     }
-    
+
 
     // Sphere pass
     {
         auto g = sphereFramebuffer->guard();
-        glClearColor(0.f, 0.f, 0.f, -1.0f);
+        glClearColor(0.f, 0.f, 0.f, FAR_DIST);
         glEnable(GL_DEPTH_TEST);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -161,7 +163,7 @@ void Scene::render() {
         uniform(shaderId, "MVPInverse", MVPInverse);
         uniform(shaderId, "modelViewMatrix", vMat);
         uniform(shaderId, "projectionMatrix", pMat);
-        uniform(shaderId, "nearPlaneZ", nearPlane.z);
+        uniform(shaderId, "clipNearPlaneZ", clipNearPlane.z);
         uniform(shaderId, "time", runningTime);
 
         auto g2 = sceneBuffer->guard();
@@ -171,7 +173,7 @@ void Scene::render() {
 
     // List pass
     {
-        glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT);        
+        glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT);
         
         if (!shaders.contains("list"))
             return;
@@ -187,7 +189,7 @@ void Scene::render() {
         uniform(shaderId, "projectionMatrix", pMat);
         uniform(shaderId, "MVP", MVP);
         uniform(shaderId, "MVPInverse", MVPInverse);
-        uniform(shaderId, "nearPlaneZ", nearPlane.z);
+        uniform(shaderId, "clipNearPlaneZ", clipNearPlane.z);
         uniform(shaderId, "radiusScale", outerRadiusScale);
 
         auto g2 = sceneBuffer->guard();
@@ -197,7 +199,8 @@ void Scene::render() {
 
     // Surface pass
     {
-        glMemoryBarrier(GL_ALL_BARRIER_BITS);
+        glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT | GL_SHADER_STORAGE_BARRIER_BIT);
+
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glDisable(GL_DEPTH_TEST);
         glClear(GL_COLOR_BUFFER_BIT);
@@ -208,7 +211,7 @@ void Scene::render() {
         const auto shaderId = *shaders.at("surface");
         glUseProgram(shaderId);
 
-        positionTexture->bind();
+        // positionTexture->bind();
         listBuffer->bindBase();
         uniform(shaderId, "MVPInverse", MVPInverse);
         uniform(shaderId, "time", runningTime);

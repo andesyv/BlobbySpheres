@@ -3,3 +3,6 @@ build/
 
 # Dear ImGui artifacts
 imgui.ini
+
+# Nvidia Nsight project files
+*.ngfx-proj

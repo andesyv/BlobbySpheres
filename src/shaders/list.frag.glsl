@@ -1,6 +1,6 @@
 #version 450
 
-layout(origin_upper_left, pixel_center_integer) in vec4 gl_FragCoord;
+layout(pixel_center_integer) in vec4 gl_FragCoord;
 
 in vec4 gFragmentPosition;
 flat in vec4 gSpherePosition;
@@ -51,6 +51,7 @@ Sphere calcSphereIntersection(float r, vec3 origin, vec3 center, vec3 line)
 		return Sphere(false, vec3(0), vec3(0));
 	}
 }
+
 float calcDepth(vec3 pos)
 {
 	float far = gl_DepthRange.far; 
@@ -59,7 +60,6 @@ float calcDepth(vec3 pos)
 	float ndc_depth = clip_space_pos.z / clip_space_pos.w;
 	return (((far - near) * ndc_depth) + near + far) / 2.0;
 }
-
 
 void main()
 {
@@ -82,8 +82,8 @@ void main()
 	
 	float dist = length(sphere.near.xyz-near.xyz);
 	
-	// if (dist > position.w)
-	// 	discard;
+	if (dist > position.w)
+		discard;
 
 	uint intersectionIndex = uint(gl_FragCoord.x) + uint(gl_FragCoord.y) * SCREEN_SIZE.x;
 	// Note: Prone to integer overflow:

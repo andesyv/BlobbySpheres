@@ -4,7 +4,7 @@
 #define EPSILON 0.001
 #define MAX_STEPS 100u
 
-layout(origin_upper_left, pixel_center_integer) in vec4 gl_FragCoord;
+layout(pixel_center_integer) in vec4 gl_FragCoord;
 
 in vec2 ndc;
 
@@ -38,6 +38,13 @@ float smin( float a, float b, float k )
 {
     float h = max( k-abs(a-b), 0.0 )/k;
     return min( a, b ) - h*h*k*(1.0/4.0);
+}
+
+// power smooth min (k = 8);
+float p_smin( float a, float b, float k )
+{
+    a = pow( a, k ); b = pow( b, k );
+    return pow( (a*b)/(a+b), 1.0/k );
 }
 
 float sdf(in vec4 entries[MAX_ENTRIES], uint entryCount, vec3 p) {

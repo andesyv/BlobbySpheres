@@ -47,6 +47,8 @@ float calcDepth(vec3 pos)
 	float near = gl_DepthRange.near;
 	vec4 clip_space_pos = MVP * vec4(pos, 1.0);
 	float ndc_depth = clip_space_pos.z / clip_space_pos.w;
+	// Converts ndc depth [-1, 1] into window depth [window.near, window.far] (default [0, 1])
+	// gl_FragDepth expects coordinates to be in window space, a.k.a. [0, 1]
 	return (((far - near) * ndc_depth) + near + far) / 2.0;
 }
 
@@ -68,8 +70,8 @@ void main()
 	if (!sphere.hit)
 		discard;
 
-	float depth = calcDepth(sphere.near.xyz);
 	fragPosition = vec4(sphere.near.xyz,length(sphere.near.xyz-near.xyz));
 	fragNormal = vec4(sphere.normal,uintBitsToFloat(gSphereId));
+	float depth = calcDepth(sphere.near.xyz);
 	gl_FragDepth = depth;
 }
