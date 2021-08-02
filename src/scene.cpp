@@ -11,6 +11,7 @@
 #include <imgui.h>
 
 using namespace comp;
+using namespace globjects;
 using namespace util;
 
 constexpr glm::uint SCENE_SIZE = 100;
@@ -101,7 +102,7 @@ Scene::Scene()
     normalTexture = std::make_shared<Tex2D>(SCR_SIZE);
     depthTexture = std::make_shared<Tex2D>(SCR_SIZE, GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT);
 
-    sphereFramebuffer = std::make_shared<Framebuffer<Tex2D>>(
+    sphereFramebuffer = std::make_shared<Framebuffer>(
         std::make_pair(GL_COLOR_ATTACHMENT0, std::shared_ptr{positionTexture}),
         std::make_pair(GL_COLOR_ATTACHMENT1, std::shared_ptr{normalTexture}),
         std::make_pair(GL_DEPTH_ATTACHMENT, std::shared_ptr{depthTexture})
@@ -110,13 +111,7 @@ Scene::Scene()
     assert(sphereFramebuffer->completeness() == "GL_FRAMEBUFFER_COMPLETE");
 
 
-    listTextureBuffer = std::make_shared<Tex3D>(glm::ivec3{SCR_SIZE, LIST_MAX_ENTRIES});
     listIndexBuffer = std::make_shared<Tex2D>(SCR_SIZE, GL_R32UI, GL_RED_INTEGER);
-
-    listFramebuffer = std::make_shared<Framebuffer<Tex3D>>(
-        std::make_pair(GL_COLOR_ATTACHMENT0, std::shared_ptr{listTextureBuffer}),
-        std::make_pair(GL_DEPTH_ATTACHMENT, std::shared_ptr{depthTexture})
-    );
 
     // SSBOs
     const std::size_t bufferSize = (sizeof(glm::vec4) * LIST_MAX_ENTRIES + sizeof(glm::uint)) * SCR_SIZE.x * SCR_SIZE.y;

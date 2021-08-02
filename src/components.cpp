@@ -1,9 +1,9 @@
 #include "components.h"
-#include "utils.h"
+#include "globjects.h"
 
 namespace comp {
 
-Mesh::Mesh(std::shared_ptr<util::VertexArray>& vertexArray, unsigned int vCount, unsigned int iCount)
+Mesh::Mesh(std::shared_ptr<globjects::VertexArray>& vertexArray, unsigned int vCount, unsigned int iCount)
     : vao{vertexArray}, vertexCount{vCount}, indexCount{iCount}
 {}
 

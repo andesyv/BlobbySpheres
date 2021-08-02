@@ -1,5 +1,4 @@
 #include "utils.h"
-#include "zip.hpp"
 
 #include <glm/gtc/type_ptr.hpp>
 

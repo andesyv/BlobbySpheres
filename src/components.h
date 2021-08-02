@@ -6,7 +6,7 @@
 #include <memory>
 #include <string>
 
-namespace util {
+namespace globjects {
     class VertexArray;
 };
 
@@ -23,11 +23,11 @@ struct Sphere {
 };
 
 struct Mesh {
-    std::shared_ptr<util::VertexArray> vao;
+    std::shared_ptr<globjects::VertexArray> vao;
     unsigned int vertexCount{0}, indexCount{0};
 
     Mesh() = default;
-    Mesh(std::shared_ptr<util::VertexArray>& vertexArray, unsigned int vCount = 0, unsigned int iCount = 0);
+    Mesh(std::shared_ptr<globjects::VertexArray>& vertexArray, unsigned int vCount = 0, unsigned int iCount = 0);
 
     void draw();
 };
