@@ -114,6 +114,21 @@ std::string to_string_with_precision(const T a_value, const int n = 6)
     return out.str();
 }
 
+template <std::size_t N, typename T, T InitVal>
+constexpr std::array<T, N> make_const_array() {
+    std::array<T, N> arr;
+    for (std::size_t i{0}; i < N; ++i)
+        arr[i] = InitVal;
+    return arr;
+}
+
+template <typename T>
+auto gen_vec(std::size_t N, T initVal = {}) {
+    std::vector<T> v;
+    v.resize(N, initVal);
+    return v;
+}
+
 }
 
 #endif // UTILS_H

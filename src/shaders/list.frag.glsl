@@ -12,17 +12,20 @@ uniform mat4 MVP;
 uniform mat4 MVPInverse;
 
 layout(binding = 0) uniform sampler2D positionTexture;
+layout(r32ui, binding = 1) uniform uimage2D abufferIndexTexture;
 
 struct FragmentEntry
 {
-	vec4 pos[MAX_ENTRIES];
-	uint count;
+	vec4 pos;
+	uint prev;
 };
 
 layout(std430, binding = 0) buffer intersectionBuffer
 {
-	FragmentEntry intersections[];
+	FragmentEntry intersections[LIST_MAX_ENTRIES];
 };
+
+layout(binding = 0) uniform atomic_uint counter;
 
 struct Sphere
 {			
@@ -85,13 +88,17 @@ void main()
 	if (dist > position.w)
 		discard;
 
-	uint intersectionIndex = uint(gl_FragCoord.x) + uint(gl_FragCoord.y) * SCREEN_SIZE.x;
-	// Note: Prone to integer overflow:
-	uint index = atomicAdd(intersections[intersectionIndex].count, 1);
-	if (MAX_ENTRIES <= index)
+	uint index = atomicCounterIncrement(counter);
+	if (LIST_MAX_ENTRIES <= index)
 		discard;
+	uint prev = imageAtomicExchange(abufferIndexTexture,ivec2(gl_FragCoord.xy),index);
 
-	intersections[intersectionIndex].pos[index] = vec4(gSpherePosition.xyz, gSphereRadius);
+
+	FragmentEntry entry;
+	entry.pos = vec4(gSpherePosition.xyz, gSphereRadius);
+	entry.prev = prev;
+
+	intersections[index] = entry;
 
 	discard;
 }

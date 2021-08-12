@@ -12,17 +12,18 @@ uniform mat4 MVPInverse = mat4(1.0);
 uniform float time = 0.0;
 uniform float smoothing = 0.13;
 
-layout(location = 0) uniform sampler2D positionTex; 
+layout(binding = 0) uniform sampler2D positionTex;
+layout(binding = 1) uniform usampler2D abufferIndexTexture;
 
 struct FragmentEntry
 {
-	vec4 pos[MAX_ENTRIES];
-	uint count;
+	vec4 pos;
+	uint prev;
 };
 
 layout(std430, binding = 0) buffer intersectionBuffer
 {
-	FragmentEntry intersections[];
+	FragmentEntry intersections[LIST_MAX_ENTRIES];
 };
 
 out vec4 fragColor;
@@ -83,15 +84,22 @@ void main()
     float t4 = time / 4.0;
     float t3 = time / 3.0;
 
-    uint intersectionIndex = uint(gl_FragCoord.x) + uint(gl_FragCoord.y) * SCREEN_SIZE.x;
+    // Build index list:
+    uint entryCount = 0;
+    vec4 entries[MAX_ENTRIES];
+    uint abuffer = texelFetch(abufferIndexTexture,ivec2(gl_FragCoord.xy),0).x;
+    fragColor = vec4(vec3(abuffer), 0.0);
+    return;
+    for (; 0 < abuffer && entryCount < MAX_ENTRIES; ++entryCount) {
+        FragmentEntry entry = intersections[abuffer];
+        entries[entryCount] = entry.pos;
+        abuffer = entry.prev;
+    }
 
-    uint entryCount = min(intersections[intersectionIndex].count, MAX_ENTRIES);
+    fragColor = vec4(vec3(entryCount) / 10.0, 0.0);
+    return;
 
     if (entryCount != 0) {
-        vec4 entries[MAX_ENTRIES];
-        for (int i = 0; i < entryCount; ++i)
-            entries[i] = intersections[intersectionIndex].pos[i];
-
         vec4 p = ro;
         for (uint i = 0u; i < MAX_STEPS; ++i) {
             float dist = sdf(entries, entryCount, p.xyz);

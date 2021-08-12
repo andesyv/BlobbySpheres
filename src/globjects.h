@@ -79,6 +79,11 @@ public:
         glBindBufferBase(BufferType, 0, id);
     }
 
+    // Same as bindBase, but also let's you specify range of bound buffer (glBindBufferRange)
+    void bindRange(GLsizeiptr size, unsigned int binding = 0, GLintptr offset = 0) {
+        glBindBufferRange(BufferType, binding, id, offset, size);
+    }
+
     ~Buffer() {
         glDeleteBuffers(1, &id);
     }
@@ -89,6 +94,11 @@ class TextureBase {
 public:
     unsigned int id;
     const GLenum type = TextureType;
+    DimType texSize;
+    GLint texInternalFormat;
+    // Format of data transfered to texture for clear and init purposes.
+    // Can usually be determined from internalformat.
+    GLenum texDataFormat;
 
     TextureBase() {
         glGenTextures(1, &id);
@@ -97,6 +107,11 @@ public:
     virtual void data(GLint level, GLint internalformat, DimType size, GLint border, GLenum format, GLenum type, const void * data) = 0;
 
     virtual void init(DimType size = DimType{}, GLenum internalformat = GL_RGBA16F, GLenum format = GL_RGBA) = 0;
+
+    void clear() {
+        bind();
+        data(0, texInternalFormat, texSize, 0, texDataFormat, GL_UNSIGNED_BYTE, nullptr);
+    };
 
     void bind(unsigned int textureUnit = 0) {
         glActiveTexture(GL_TEXTURE0 + textureUnit);
@@ -128,6 +143,9 @@ class Texture<GL_TEXTURE_2D> : public TextureBase<GL_TEXTURE_2D, glm::ivec2> {
 public:
     void data(GLint level, GLint internalformat, glm::ivec2 size, GLint border, GLenum format, GLenum type, const void * data) final {
         glTexImage2D(GL_TEXTURE_2D, level, internalformat, size.x, size.y, border, format, type, data);
+        texSize = size;
+        texInternalFormat = internalformat;
+        texDataFormat = format;
     }
 
     void init(glm::ivec2 size = glm::ivec2{}, GLenum internalformat = GL_RGBA16F, GLenum format = GL_RGBA) final {
@@ -152,6 +170,9 @@ class Texture<GL_TEXTURE_3D> : public TextureBase<GL_TEXTURE_3D, glm::ivec3> {
 public:
     void data(GLint level, GLint internalformat, glm::ivec3 size, GLint border, GLenum format, GLenum type, const void * data) final {
         glTexImage3D(GL_TEXTURE_3D, level, internalformat, size.x, size.y, size.z, border, format, type, data);
+        texSize = size;
+        texInternalFormat = internalformat;
+        texDataFormat = format;
     }
 
     void init(glm::ivec3 size = glm::ivec3{}, GLenum internalformat = GL_RGBA16F, GLenum format = GL_RGBA) final {

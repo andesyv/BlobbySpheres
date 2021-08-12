@@ -15,7 +15,8 @@ using namespace globjects;
 using namespace util;
 
 constexpr glm::uint SCENE_SIZE = 100;
-constexpr auto LIST_MAX_ENTRIES = 128u;
+constexpr std::size_t MAX_ENTRIES = 128u;
+constexpr std::size_t LIST_MAX_ENTRIES = MAX_ENTRIES * 1000u;
 constexpr float FAR_DIST = 1000.f;
 
 Scene::Scene()
@@ -43,7 +44,8 @@ Scene::Scene()
             {GL_GEOMETRY_SHADER, "sphere.geom.glsl"},
             {GL_FRAGMENT_SHADER, "list.frag.glsl"}
         }, {
-            std::format("MAX_ENTRIES {}u", LIST_MAX_ENTRIES),
+            std::format("MAX_ENTRIES {}u", MAX_ENTRIES),
+            std::format("LIST_MAX_ENTRIES {}u", LIST_MAX_ENTRIES),
             std::format("SCREEN_SIZE uvec2({},{})", SCR_SIZE.x, SCR_SIZE.y)
         }
     }));
@@ -54,7 +56,8 @@ Scene::Scene()
             {GL_FRAGMENT_SHADER, "sdf.frag.glsl"}
         }, {
             std::format("SCENE_SIZE {}u", SCENE_SIZE),
-            std::format("MAX_ENTRIES {}u", LIST_MAX_ENTRIES),
+            std::format("MAX_ENTRIES {}u", MAX_ENTRIES),
+            std::format("LIST_MAX_ENTRIES {}u", LIST_MAX_ENTRIES),
             std::format("SCREEN_SIZE uvec2({},{})", SCR_SIZE.x, SCR_SIZE.y)
         }
     }));
@@ -111,11 +114,15 @@ Scene::Scene()
     assert(sphereFramebuffer->completeness() == "GL_FRAMEBUFFER_COMPLETE");
 
 
-    listIndexBuffer = std::make_shared<Tex2D>(SCR_SIZE, GL_R32UI, GL_RED_INTEGER);
+    listIndexTexture = std::make_shared<Tex2D>(SCR_SIZE, GL_R32UI, GL_RED_INTEGER);
 
     // SSBOs
-    const std::size_t bufferSize = (sizeof(glm::vec4) * LIST_MAX_ENTRIES + sizeof(glm::uint)) * SCR_SIZE.x * SCR_SIZE.y;
+    const std::size_t entrySize = sizeof(glm::vec4) + sizeof(glm::uint);
+    const std::size_t bufferSize = entrySize * LIST_MAX_ENTRIES;
     listBuffer = std::make_shared<Buffer<GL_SHADER_STORAGE_BUFFER>>(bufferSize, GL_DYNAMIC_DRAW);
+
+    // Atomic counters
+    atomicCounter = std::make_shared<Buffer<GL_ATOMIC_COUNTER_BUFFER>>(sizeof(glm::uint), GL_DYNAMIC_DRAW);
 }
 
 void Scene::reloadShaders() {
@@ -149,6 +156,20 @@ void Scene::render() {
         ImGui::EndMenu();
     }
 
+    // Clear buffers:
+    {
+        auto g = listBuffer->guard();
+        glClearBufferData(GL_SHADER_STORAGE_BUFFER, GL_R8, GL_RED, GL_UNSIGNED_INT, 0);
+        auto g2 = atomicCounter->guard();
+        constexpr static unsigned int atomicCounterClearData[] = {1};
+        glClearBufferData(GL_ATOMIC_COUNTER_BUFFER, GL_R32UI, GL_RED, GL_UNSIGNED_INT, atomicCounterClearData);
+        // listIndexTexture->clear();
+        glActiveTexture(GL_TEXTURE0);
+        listIndexTexture->bind();
+        const static auto intClearData = gen_vec(600*800, 0u);
+        listIndexTexture->data(0, GL_R32UI, Settings::get().SCR_SIZE, 0, GL_RED_INTEGER, GL_UNSIGNED_INT, intClearData.data());
+    }
+
 
     // Sphere pass
     {
@@ -176,7 +197,8 @@ void Scene::render() {
 
     // List pass
     {
-        glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT);
+        // glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT);
+        glMemoryBarrier(GL_ALL_BARRIER_BITS);
         
         if (!shaders.contains("list"))
             return;
@@ -184,10 +206,11 @@ void Scene::render() {
         const auto shaderId = *shaders.at("list");
         glUseProgram(shaderId);
 
-        positionTexture->bind();
-        listBuffer->bindBase();
-        glClearBufferData(GL_SHADER_STORAGE_BUFFER, GL_R8, GL_RED, GL_UNSIGNED_INT, 0);
+        positionTexture->bind(0);
 
+        atomicCounter->bindRange(sizeof(glm::uint));
+        glBindImageTexture(1, listIndexTexture->id, 0, GL_FALSE, 0, GL_READ_WRITE, GL_R32UI);
+        listBuffer->bindBase();
         uniform(shaderId, "modelViewMatrix", vMat);
         uniform(shaderId, "projectionMatrix", pMat);
         uniform(shaderId, "MVP", MVP);
@@ -202,7 +225,8 @@ void Scene::render() {
 
     // Surface pass
     {
-        glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT | GL_SHADER_STORAGE_BARRIER_BIT);
+        // glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT | GL_SHADER_STORAGE_BARRIER_BIT);
+        glMemoryBarrier(GL_ALL_BARRIER_BITS);
 
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glDisable(GL_DEPTH_TEST);
@@ -215,6 +239,7 @@ void Scene::render() {
         glUseProgram(shaderId);
 
         // positionTexture->bind();
+        listIndexTexture->bind(1);
         listBuffer->bindBase();
         uniform(shaderId, "MVPInverse", MVPInverse);
         uniform(shaderId, "time", runningTime);
