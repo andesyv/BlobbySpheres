@@ -11,13 +11,21 @@ in vec2 ndc;
 uniform mat4 MVPInverse = mat4(1.0);
 uniform float time = 0.0;
 uniform float smoothing = 0.13;
+uniform float interpolation = 0.0;
 
-layout(binding = 0) uniform sampler2D positionTex;
+// layout(binding = 0) uniform sampler2D positionTex;
 layout(binding = 1) uniform usampler2D abufferIndexTexture;
+// layout(binding = 2) uniform sampler2D positionTex2;
+layout(binding = 3) uniform usampler2D abufferIndexTexture2;
 
 layout(std430, binding = 0) buffer intersectionBuffer
 {
 	vec4 intersections[];
+};
+
+layout(std430, binding = 1) buffer intersectionBuffer2
+{
+	vec4 intersections2[];
 };
 
 out vec4 fragColor;
@@ -79,33 +87,46 @@ void main()
     float t3 = time / 3.0;
 
     // Build index list:
-    uint bufferIndex = MAX_ENTRIES * (SCREEN_SIZE.y * uint(gl_FragCoord.x) + uint(gl_FragCoord.y));
+    const uint bufferIndex = MAX_ENTRIES * (SCREEN_SIZE.y * uint(gl_FragCoord.x) + uint(gl_FragCoord.y));
     uint entryCount = min(texelFetch(abufferIndexTexture,ivec2(gl_FragCoord.xy),0).x, MAX_ENTRIES);
-    if (entryCount != 0) {
-        vec4 entries[MAX_ENTRIES];
-        for (int i = 0; i < entryCount; ++i) {
+    uint entryCount2 = min(texelFetch(abufferIndexTexture2,ivec2(gl_FragCoord.xy),0).x, MAX_ENTRIES);
+    bool bEmpty = entryCount == 0;
+    bool bEmpty2 = entryCount2 == 0;
+    if (bEmpty && bEmpty2) {
+        fragColor = vec4(abs(rd.xyz) * 0.6, 1.0);
+        return;
+    }
+
+    vec4 entries[MAX_ENTRIES], entries2[MAX_ENTRIES];
+    if (!bEmpty)
+        for (int i = 0; i < entryCount; ++i)
             entries[i] = intersections[bufferIndex + i];
+    if (!bEmpty2)
+        for (int i = 0; i < entryCount2; ++i)
+            entries2[i] = intersections2[bufferIndex + i];
+
+    vec4 p = ro;
+    for (uint i = 0u; i < MAX_STEPS; ++i) {
+        float dist =    bEmpty ? sdf(entries2, entryCount2, p.xyz) : 
+                        bEmpty2 ? sdf(entries, entryCount, p.xyz) :
+                        mix(sdf(entries, entryCount, p.xyz), sdf(entries2, entryCount2, p.xyz), interpolation);
+
+        if (1000.0 <= dist)
+            break;
+
+        if (dist < EPSILON) {
+            vec3 grad = bEmpty ? gradient(entries2, entryCount2, p.xyz) :
+                        bEmpty2 ? gradient(entries, entryCount, p.xyz) :
+                        mix(gradient(entries, entryCount, p.xyz), gradient(entries2, entryCount2, p.xyz), interpolation);
+            vec3 lightDir = rd.xyz;
+            vec3 normal = normalize(grad);
+            vec3 phong = vec3(1.0, 0.0, 0.0) * max(dot(normal, -lightDir), 0.15);
+            fragColor = vec4(phong, 1.0);
+            // fragColor = vec4(vec3(p.w + dist), 1.0);
+            return;
         }
-        
-        vec4 p = ro;
-        for (uint i = 0u; i < MAX_STEPS; ++i) {
-            float dist = sdf(entries, entryCount, p.xyz);
 
-            if (1000.0 <= dist)
-                break;
-
-            if (dist < EPSILON) {
-                vec3 grad = gradient(entries, entryCount, p.xyz);
-                vec3 lightDir = rd.xyz;
-                vec3 normal = normalize(grad);
-                vec3 phong = vec3(1.0, 0.0, 0.0) * max(dot(normal, -lightDir), 0.15);
-                fragColor = vec4(phong, 1.0);
-                // fragColor = vec4(vec3(p.w + dist), 1.0);
-                return;
-            }
-
-            p += rd * dist;
-        }
+        p += rd * dist;
     }
 
     fragColor = vec4(abs(rd.xyz) * 0.6, 1.0);

@@ -76,7 +76,7 @@ public:
     auto guard() { return Guard{this}; }
 
     void bindBase(unsigned int binding = 0) {
-        glBindBufferBase(BufferType, 0, id);
+        glBindBufferBase(BufferType, binding, id);
     }
 
     // Same as bindBase, but also let's you specify range of bound buffer (glBindBufferRange)

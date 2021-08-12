@@ -15,6 +15,7 @@ using namespace globjects;
 using namespace util;
 
 constexpr glm::uint SCENE_SIZE = 1000;
+constexpr glm::uint SCENE_SIZE2 = SCENE_SIZE / 7;
 constexpr std::size_t MAX_ENTRIES = 32u;
 constexpr std::size_t LIST_MAX_ENTRIES = MAX_ENTRIES * 800 * 600;
 constexpr float FAR_DIST = 1000.f;
@@ -97,12 +98,30 @@ Scene::Scene()
         positions.emplace_back(pos, radius);
     }
 
-    sceneBuffer = std::make_unique<VertexArray>(positions);
+    sceneBuffer = std::make_shared<VertexArray>(positions);
     sceneBuffer->vertexAttribute(0, 4, GL_FLOAT, GL_FALSE);
+
+
+    positions.clear();
+    positions.reserve(SCENE_SIZE2);
+    for (glm::uint i = 0; i < SCENE_SIZE2; ++i) {
+        auto entity = EM.create();
+
+        const auto pos = glm::ballRand(0.4f);
+        const auto radius = glm::linearRand(0.01f, 0.2f);
+
+        EM.emplace<Sphere>(entity, pos, radius);
+        positions.emplace_back(pos, radius);
+    }
+
+    sceneBuffer2 = std::make_shared<VertexArray>(positions);
+    sceneBuffer2->vertexAttribute(0, 4, GL_FLOAT, GL_FALSE);
 
     // Framebuffers:
     positionTexture = std::make_shared<Tex2D>(SCR_SIZE);
+    positionTexture2 = std::make_shared<Tex2D>(SCR_SIZE);
     normalTexture = std::make_shared<Tex2D>(SCR_SIZE);
+    normalTexture2 = std::make_shared<Tex2D>(SCR_SIZE);
     depthTexture = std::make_shared<Tex2D>(SCR_SIZE, GL_DEPTH_COMPONENT, GL_DEPTH_COMPONENT);
 
     sphereFramebuffer = std::make_shared<Framebuffer>(
@@ -110,16 +129,24 @@ Scene::Scene()
         std::make_pair(GL_COLOR_ATTACHMENT1, std::shared_ptr{normalTexture}),
         std::make_pair(GL_DEPTH_ATTACHMENT, std::shared_ptr{depthTexture})
     );
+    sphereFramebuffer2 = std::make_shared<Framebuffer>(
+        std::make_pair(GL_COLOR_ATTACHMENT0, std::shared_ptr{positionTexture2}),
+        std::make_pair(GL_COLOR_ATTACHMENT1, std::shared_ptr{normalTexture2}),
+        std::make_pair(GL_DEPTH_ATTACHMENT, std::shared_ptr{depthTexture})
+    );
     
     assert(sphereFramebuffer->completeness() == "GL_FRAMEBUFFER_COMPLETE");
+    assert(sphereFramebuffer2->completeness() == "GL_FRAMEBUFFER_COMPLETE");
 
 
     listIndexTexture = std::make_shared<Tex2D>(SCR_SIZE, GL_R32UI, GL_RED_INTEGER);
+    listIndexTexture2 = std::make_shared<Tex2D>(SCR_SIZE, GL_R32UI, GL_RED_INTEGER);
 
     // SSBOs
     const std::size_t entrySize = sizeof(glm::vec4);
     const std::size_t bufferSize = entrySize * MAX_ENTRIES * SCR_SIZE.x * SCR_SIZE.y;
     listBuffer = std::make_shared<Buffer<GL_SHADER_STORAGE_BUFFER>>(bufferSize, GL_DYNAMIC_DRAW);
+    listBuffer2 = std::make_shared<Buffer<GL_SHADER_STORAGE_BUFFER>>(bufferSize, GL_DYNAMIC_DRAW);
 }
 
 void Scene::reloadShaders() {
@@ -144,33 +171,37 @@ void Scene::render() {
     const float innerRadiusScale = 1.f;
     static float outerRadiusScale = 2.5f;
     static float smoothing = 0.04f;
+    static float interpolation = 0.0f;
 
     // Gui:
     if (ImGui::BeginMenu("Scene")) {
         ImGui::SliderFloat("Radius", &outerRadiusScale, 0.f, 10.f);
         ImGui::SliderFloat("Smoothing Factor", &smoothing, 0.f, 4.f);
+        ImGui::SliderFloat("Interpolation", &interpolation, 0.f, 1.f);
 
         ImGui::EndMenu();
     }
 
     // Clear buffers:
     {
-        auto g = listBuffer->guard();
+        listBuffer->bind();
+        glClearBufferData(GL_SHADER_STORAGE_BUFFER, GL_R8, GL_RED, GL_UNSIGNED_INT, 0);
+        listBuffer2->bind();
         glClearBufferData(GL_SHADER_STORAGE_BUFFER, GL_R8, GL_RED, GL_UNSIGNED_INT, 0);
         // listIndexTexture->clear();
+        const static auto intClearData = gen_vec(600*800, 0u);
         glActiveTexture(GL_TEXTURE0);
         listIndexTexture->bind();
-        const static auto intClearData = gen_vec(600*800, 0u);
         listIndexTexture->data(0, GL_R32UI, Settings::get().SCR_SIZE, 0, GL_RED_INTEGER, GL_UNSIGNED_INT, intClearData.data());
+        listIndexTexture2->bind();
+        listIndexTexture2->data(0, GL_R32UI, Settings::get().SCR_SIZE, 0, GL_RED_INTEGER, GL_UNSIGNED_INT, intClearData.data());
     }
 
 
     // Sphere pass
     {
-        auto g = sphereFramebuffer->guard();
         glClearColor(0.f, 0.f, 0.f, FAR_DIST);
         glEnable(GL_DEPTH_TEST);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         if (!shaders.contains("sphere"))
             return;
@@ -184,8 +215,13 @@ void Scene::render() {
         uniform(shaderId, "clipNearPlaneZ", clipNearPlane.z);
         uniform(shaderId, "time", runningTime);
 
-        auto g2 = sceneBuffer->guard();
-        glDrawArrays(GL_POINTS, 0, static_cast<GLsizei>(SCENE_SIZE));
+        for (glm::uint i{0}; i < 2; ++i) {
+            auto g = (i == 0 ? sphereFramebuffer : sphereFramebuffer2)->guard();
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+            auto g2 = (i == 0 ? sceneBuffer : sceneBuffer2)->guard();
+            glDrawArrays(GL_POINTS, 0, static_cast<GLsizei>(i == 0 ? SCENE_SIZE : SCENE_SIZE2));
+        }
     }
 
 
@@ -198,11 +234,6 @@ void Scene::render() {
             
         const auto shaderId = *shaders.at("list");
         glUseProgram(shaderId);
-
-        positionTexture->bind(0);
-
-        glBindImageTexture(1, listIndexTexture->id, 0, GL_FALSE, 0, GL_READ_WRITE, GL_R32UI);
-        listBuffer->bindBase();
         uniform(shaderId, "modelViewMatrix", vMat);
         uniform(shaderId, "projectionMatrix", pMat);
         uniform(shaderId, "MVP", MVP);
@@ -210,8 +241,15 @@ void Scene::render() {
         uniform(shaderId, "clipNearPlaneZ", clipNearPlane.z);
         uniform(shaderId, "radiusScale", outerRadiusScale);
 
-        auto g2 = sceneBuffer->guard();
-        glDrawArrays(GL_POINTS, 0, static_cast<GLsizei>(SCENE_SIZE));
+        for (glm::uint i{0}; i < 2; ++i) {
+            (i == 0 ? positionTexture : positionTexture2)->bind(0);
+
+            glBindImageTexture(1, (i == 0 ? listIndexTexture : listIndexTexture2)->id, 0, GL_FALSE, 0, GL_READ_WRITE, GL_R32UI);
+            (i == 0 ? listBuffer : listBuffer2)->bindBase(0);
+
+            auto g2 = (i == 0 ? sceneBuffer : sceneBuffer2)->guard();
+            glDrawArrays(GL_POINTS, 0, static_cast<GLsizei>(i == 0 ? SCENE_SIZE : SCENE_SIZE2));
+        }
     }
 
 
@@ -229,12 +267,16 @@ void Scene::render() {
         const auto shaderId = *shaders.at("surface");
         glUseProgram(shaderId);
 
-        // positionTexture->bind();
+        // positionTexture->bind(0);
         listIndexTexture->bind(1);
-        listBuffer->bindBase();
+        // positionTexture2->bind(2);
+        listIndexTexture2->bind(3);
+        listBuffer->bindBase(0);
+        listBuffer2->bindBase(1);
         uniform(shaderId, "MVPInverse", MVPInverse);
         uniform(shaderId, "time", runningTime);
         uniform(shaderId, "smoothing", smoothing);
+        uniform(shaderId, "interpolation", interpolation);
 
         screenMesh.draw();
     }
