@@ -144,9 +144,8 @@ Scene::Scene()
 
     // SSBOs
     const std::size_t entrySize = sizeof(glm::vec4);
-    const std::size_t bufferSize = entrySize * MAX_ENTRIES * SCR_SIZE.x * SCR_SIZE.y;
+    const std::size_t bufferSize = entrySize * MAX_ENTRIES * 2 * SCR_SIZE.x * SCR_SIZE.y;
     listBuffer = std::make_shared<Buffer<GL_SHADER_STORAGE_BUFFER>>(bufferSize, GL_DYNAMIC_DRAW);
-    listBuffer2 = std::make_shared<Buffer<GL_SHADER_STORAGE_BUFFER>>(bufferSize, GL_DYNAMIC_DRAW);
 }
 
 void Scene::reloadShaders() {
@@ -185,8 +184,6 @@ void Scene::render() {
     // Clear buffers:
     {
         listBuffer->bind();
-        glClearBufferData(GL_SHADER_STORAGE_BUFFER, GL_R8, GL_RED, GL_UNSIGNED_INT, 0);
-        listBuffer2->bind();
         glClearBufferData(GL_SHADER_STORAGE_BUFFER, GL_R8, GL_RED, GL_UNSIGNED_INT, 0);
         // listIndexTexture->clear();
         const static auto intClearData = gen_vec(600*800, 0u);
@@ -241,11 +238,14 @@ void Scene::render() {
         uniform(shaderId, "clipNearPlaneZ", clipNearPlane.z);
         uniform(shaderId, "radiusScale", outerRadiusScale);
 
+        listBuffer->bindBase(0);
+
         for (glm::uint i{0}; i < 2; ++i) {
+            uniform(shaderId, "passIndex", i);
+
             (i == 0 ? positionTexture : positionTexture2)->bind(0);
 
             glBindImageTexture(1, (i == 0 ? listIndexTexture : listIndexTexture2)->id, 0, GL_FALSE, 0, GL_READ_WRITE, GL_R32UI);
-            (i == 0 ? listBuffer : listBuffer2)->bindBase(0);
 
             auto g2 = (i == 0 ? sceneBuffer : sceneBuffer2)->guard();
             glDrawArrays(GL_POINTS, 0, static_cast<GLsizei>(i == 0 ? SCENE_SIZE : SCENE_SIZE2));
@@ -272,7 +272,6 @@ void Scene::render() {
         // positionTexture2->bind(2);
         listIndexTexture2->bind(3);
         listBuffer->bindBase(0);
-        listBuffer2->bindBase(1);
         uniform(shaderId, "MVPInverse", MVPInverse);
         uniform(shaderId, "time", runningTime);
         uniform(shaderId, "smoothing", smoothing);

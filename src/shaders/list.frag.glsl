@@ -10,6 +10,7 @@ flat in uint gSphereId;
 
 uniform mat4 MVP;
 uniform mat4 MVPInverse;
+uniform uint passIndex = 0;
 
 layout(binding = 0) uniform sampler2D positionTexture;
 layout(r32ui, binding = 1) uniform uimage2D abufferIndexTexture;
@@ -84,7 +85,7 @@ void main()
 	if (MAX_ENTRIES <= index)
 		discard;
 
-	uint bufferIndex = MAX_ENTRIES * (SCREEN_SIZE.y * uint(gl_FragCoord.x) + uint(gl_FragCoord.y)) + index;
+	uint bufferIndex = 2 * MAX_ENTRIES * (SCREEN_SIZE.y * uint(gl_FragCoord.x) + uint(gl_FragCoord.y)) + MAX_ENTRIES * passIndex + index;
 	intersections[bufferIndex] = vec4(gSpherePosition.xyz, gSphereRadius);
 
 	discard;

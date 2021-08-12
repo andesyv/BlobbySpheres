@@ -4,6 +4,12 @@
 
 namespace util {
 
+// uivec1
+template <> void uniform<glm::uint>(unsigned int location, const glm::uint& value)
+{
+    glUniform1ui(location, value);
+}
+
 // vec{1-4}
 template <> void uniform<float>(unsigned int location, const float& value)
 {

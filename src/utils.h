@@ -26,6 +26,9 @@ struct is_present {
 template <typename T>
 void uniform(unsigned int location, const T& value) = delete;
 
+// uivec1
+template <> void uniform<glm::uint>(unsigned int location, const glm::uint& value);
+
 // vec{1-4}
 template <> void uniform<float>(unsigned int location, const float& value);
 template <> void uniform<glm::vec2>(unsigned int location, const glm::vec2& value);

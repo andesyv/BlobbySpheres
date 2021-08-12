@@ -20,7 +20,7 @@ private:
     std::shared_ptr<globjects::Tex2D> positionTexture, normalTexture, positionTexture2, normalTexture2, depthTexture;
     std::shared_ptr<globjects::Framebuffer> sphereFramebuffer, sphereFramebuffer2;
 
-    std::shared_ptr<globjects::Buffer<GL_SHADER_STORAGE_BUFFER>> listBuffer, listBuffer2;
+    std::shared_ptr<globjects::Buffer<GL_SHADER_STORAGE_BUFFER>> listBuffer;
     std::shared_ptr<globjects::Tex2D> listIndexTexture, listIndexTexture2;
 
 public:

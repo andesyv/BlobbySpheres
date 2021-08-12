@@ -23,11 +23,6 @@ layout(std430, binding = 0) buffer intersectionBuffer
 	vec4 intersections[];
 };
 
-layout(std430, binding = 1) buffer intersectionBuffer2
-{
-	vec4 intersections2[];
-};
-
 out vec4 fragColor;
 
 // SDF:
@@ -87,7 +82,7 @@ void main()
     float t3 = time / 3.0;
 
     // Build index list:
-    const uint bufferIndex = MAX_ENTRIES * (SCREEN_SIZE.y * uint(gl_FragCoord.x) + uint(gl_FragCoord.y));
+    const uint bufferIndex = 2 * MAX_ENTRIES * (SCREEN_SIZE.y * uint(gl_FragCoord.x) + uint(gl_FragCoord.y));
     uint entryCount = min(texelFetch(abufferIndexTexture,ivec2(gl_FragCoord.xy),0).x, MAX_ENTRIES);
     uint entryCount2 = min(texelFetch(abufferIndexTexture2,ivec2(gl_FragCoord.xy),0).x, MAX_ENTRIES);
     bool bEmpty = entryCount == 0;
@@ -103,7 +98,7 @@ void main()
             entries[i] = intersections[bufferIndex + i];
     if (!bEmpty2)
         for (int i = 0; i < entryCount2; ++i)
-            entries2[i] = intersections2[bufferIndex + i];
+            entries2[i] = intersections[bufferIndex + i + MAX_ENTRIES];
 
     vec4 p = ro;
     for (uint i = 0u; i < MAX_STEPS; ++i) {
