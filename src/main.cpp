@@ -256,7 +256,7 @@ int main()
 
             // render
             // ------
-            scene.render();
+            scene.render(deltaTime);
 
             // ImGui render UI:
             ImGui::EndMainMenuBar();

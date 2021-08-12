@@ -35,19 +35,30 @@ public:
 
 template <GLenum BufferType>
 class Buffer {
+private:
+    std::size_t bufferSize;
 public:
     unsigned int id;
     const GLenum type = BufferType;
 
     void bufferData(std::size_t byteSize, GLenum usage = GL_STATIC_DRAW) {
         auto g = guard();
+        bufferSize = byteSize;
         glBufferData(BufferType, byteSize, nullptr, usage);
     }
 
     template <typename T>
     void bufferData(const std::vector<T>& data, GLenum usage = GL_STATIC_DRAW) {
         auto g = guard();
-        glBufferData(BufferType, sizeof(T) * data.size(), data.data(), usage);
+        bufferSize = sizeof(T) * data.size();
+        glBufferData(BufferType, bufferSize, data.data(), usage);
+    }
+
+    template <typename T>
+    void updateBuffer(const std::vector<T>& data, GLintptr offset = 0) {
+        auto g = guard();
+        assert(bufferSize == sizeof(T) * data.size());
+        glBufferSubData(BufferType, offset, sizeof(T) * data.size(), data.data());
     }
     
     Buffer() {
@@ -74,6 +85,8 @@ public:
     }
 
     auto guard() { return Guard{this}; }
+
+    std::size_t size() const { return bufferSize; }
 
     void bindBase(unsigned int binding = 0) {
         glBindBufferBase(BufferType, binding, id);
@@ -233,12 +246,12 @@ public:
     std::unique_ptr<Buffer<GL_ELEMENT_ARRAY_BUFFER>> indexBuffer;
     
     template <typename T>
-    VertexArray(const std::vector<T>& vertices) : bInit{true} {
+    VertexArray(const std::vector<T>& vertices, GLenum usage = GL_STATIC_DRAW) : bInit{true} {
         glGenVertexArrays(1, &id);
         // bind the Vertex Array Object first, then bind and set vertex buffer(s), and then configure vertex attributes(s).
         glBindVertexArray(id);
 
-        vertexBuffer = std::make_unique<Buffer<GL_ARRAY_BUFFER>>(vertices);
+        vertexBuffer = std::make_unique<Buffer<GL_ARRAY_BUFFER>>(vertices, usage);
         vertexBuffer->bind();
     }
 
@@ -249,16 +262,16 @@ public:
     VertexArray(const std::array<T, I>& vertices) : VertexArray{std::vector{vertices}} {}
 
     template <typename T, typename U>
-    VertexArray(const std::vector<T>& vertices, const std::vector<U>& indices) : bInit{true} {
+    VertexArray(const std::vector<T>& vertices, const std::vector<U>& indices, GLenum usage = GL_STATIC_DRAW) : bInit{true} {
         glGenVertexArrays(1, &id);
 
         // bind the Vertex Array Object first, then bind and set vertex buffer(s), and then configure vertex attributes(s).
         glBindVertexArray(id);
 
-        vertexBuffer = std::make_unique<Buffer<GL_ARRAY_BUFFER>>(vertices);
+        vertexBuffer = std::make_unique<Buffer<GL_ARRAY_BUFFER>>(vertices, usage);
         vertexBuffer->bind();
 
-        indexBuffer = std::make_unique<Buffer<GL_ELEMENT_ARRAY_BUFFER>>(indices);
+        indexBuffer = std::make_unique<Buffer<GL_ELEMENT_ARRAY_BUFFER>>(indices, usage);
         indexBuffer->bind();
     }
 

@@ -20,6 +20,12 @@ struct Transform {
 struct Sphere {
     glm::vec3 pos;
     float radius;
+    glm::uint LOD;
+};
+
+struct Physics {
+    glm::vec3 velocity;
+    float mass;
 };
 
 struct Mesh {

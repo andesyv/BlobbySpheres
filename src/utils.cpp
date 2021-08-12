@@ -1,6 +1,7 @@
 #include "utils.h"
 
 #include <glm/gtc/type_ptr.hpp>
+#include <glm/gtc/random.hpp>
 
 namespace util {
 
@@ -47,6 +48,19 @@ template <> void uniform<glm::mat3>(unsigned int location, const glm::mat3& valu
 template <> void uniform<glm::mat4>(unsigned int location, const glm::mat4& value)
 {
     glUniformMatrix4fv(location, 1, GL_FALSE, glm::value_ptr(value));
+}
+
+
+glm::vec3 randomDiskPoint(glm::vec3 n, float r) {
+    auto q = glm::vec3{1.f, 0.f, 0.f};
+    if (glm::dot(n, glm::vec3{0.f, 1.f, 0.f}) < glm::dot(n, q))
+        q = glm::vec3{0.f, 1.f, 0.f};
+    
+    auto u = glm::normalize(glm::cross(n, q));
+    auto v = glm::normalize(glm::cross(n, u));
+
+    auto deg = glm::linearRand(0.f, 2.f * glm::pi<float>());
+    return r * u * std::sin(deg) + r * v * std::cos(deg);
 }
 
 }

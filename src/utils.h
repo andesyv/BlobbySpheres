@@ -132,6 +132,9 @@ auto gen_vec(std::size_t N, T initVal = {}) {
     return v;
 }
 
+// generates a random point around a disk defined by a normal and a radius
+glm::vec3 randomDiskPoint(glm::vec3 n, float r);
+
 }
 
 #endif // UTILS_H

@@ -2,12 +2,14 @@
 #include "utils.h"
 #include "settings.h"
 #include "camera.h"
+#include "constants.h"
 
 #include <format>
 #include <vector>
 #include <iostream>
 #include <glm/gtc/random.hpp>
 #include <glm/glm.hpp>
+#include <glm/gtx/quaternion.hpp>
 #include <imgui.h>
 
 using namespace comp;
@@ -85,7 +87,6 @@ Scene::Scene()
 
 
     // Setup scene
-    std::vector<glm::vec4> positions;
     positions.reserve(SCENE_SIZE);
 
     for (glm::uint i = 0; i < SCENE_SIZE; ++i) {
@@ -93,28 +94,35 @@ Scene::Scene()
 
         const auto pos = glm::ballRand(0.5f);
         const auto radius = glm::linearRand(0.01f, 0.1f);
+        const auto mass = 10.f * radius * radius;
+        auto velocity = glm::normalize(randomDiskPoint(pos, 1.f) - pos) * 0.3f;
+        // Multiply with mean orbital speed (https://en.wikipedia.org/wiki/Orbital_speed#Mean_orbital_speed):
+        // velocity *= std::sqrt((G * PHYSICS_CENTER_MASS) / glm::length(pos));
 
-        EM.emplace<Sphere>(entity, pos, radius);
+        EM.emplace<Sphere>(entity, pos, radius, 0u);
+        EM.emplace<Physics>(entity, velocity, mass);
         positions.emplace_back(pos, radius);
     }
 
-    sceneBuffer = std::make_shared<VertexArray>(positions);
+    sceneBuffer = std::make_shared<VertexArray>(positions, GL_DYNAMIC_DRAW);
     sceneBuffer->vertexAttribute(0, 4, GL_FLOAT, GL_FALSE);
 
 
-    positions.clear();
-    positions.reserve(SCENE_SIZE2);
+    positions2.reserve(SCENE_SIZE2);
     for (glm::uint i = 0; i < SCENE_SIZE2; ++i) {
         auto entity = EM.create();
 
         const auto pos = glm::ballRand(0.4f);
         const auto radius = glm::linearRand(0.01f, 0.2f);
+        const auto mass = 10.f * radius * radius;
+        auto velocity = glm::normalize(randomDiskPoint(pos, 1.f) - pos);
 
-        EM.emplace<Sphere>(entity, pos, radius);
-        positions.emplace_back(pos, radius);
+        EM.emplace<Sphere>(entity, pos, radius, 1u);
+        EM.emplace<Physics>(entity, velocity, mass);
+        positions2.emplace_back(pos, radius);
     }
 
-    sceneBuffer2 = std::make_shared<VertexArray>(positions);
+    sceneBuffer2 = std::make_shared<VertexArray>(positions2, GL_DYNAMIC_DRAW);
     sceneBuffer2->vertexAttribute(0, 4, GL_FLOAT, GL_FALSE);
 
     // Framebuffers:
@@ -156,7 +164,7 @@ void Scene::reloadShaders() {
             std::cout << std::format("Reloading \"{}\" shader failed!", name) << std::endl;
 }
 
-void Scene::render() {
+void Scene::render(float deltaTime) {
     const auto runningTime = Settings::get().runningTime;
     const auto& cam = Camera::getGlobalCamera();
     const auto& pMat = cam.getPMat();
@@ -171,12 +179,17 @@ void Scene::render() {
     static float outerRadiusScale = 2.5f;
     static float smoothing = 0.04f;
     static float interpolation = 0.0f;
+    static bool animation = false;
+    static float animationSpeed = 1.f;
 
     // Gui:
     if (ImGui::BeginMenu("Scene")) {
         ImGui::SliderFloat("Radius", &outerRadiusScale, 0.f, 10.f);
         ImGui::SliderFloat("Smoothing Factor", &smoothing, 0.f, 4.f);
         ImGui::SliderFloat("Interpolation", &interpolation, 0.f, 1.f);
+        ImGui::Checkbox("Animation", &animation);
+        if (animation)
+            ImGui::DragFloat("Animation speed", &animationSpeed, 0.1f, 0.1f, 10.f);
 
         ImGui::EndMenu();
     }
@@ -279,4 +292,43 @@ void Scene::render() {
 
         screenMesh.draw();
     }
+
+    if (animation)
+        animate(deltaTime * animationSpeed);
+}
+
+void Scene::animate(float deltaTime) {
+    std::size_t i{0}, j{0};
+    const auto view = EM.view<Sphere, Physics>();
+
+    for (auto entity : view) {
+        auto [trans, phys] = view.get<Sphere, Physics>(entity);
+
+        /// "Faking" gravity
+        const auto dir = phys.velocity;
+        const auto rotDir = glm::normalize(glm::cross(dir, trans.pos));
+        const auto rotAmount = glm::length(dir) * deltaTime;
+        const auto rotation = glm::angleAxis(rotAmount, rotDir);
+        
+        trans.pos = rotation * trans.pos;
+        phys.velocity = rotation * phys.velocity;
+
+        // const float radius = glm::length(trans.pos);
+        // const auto dir = (trans.pos / radius);
+        // const auto F = dir * ((G * phys.mass * PHYSICS_CENTER_MASS) / (radius * radius));
+        
+        // phys.velocity += (F / phys.mass) * deltaTime;
+        // trans.pos += phys.velocity * deltaTime;
+
+        if (trans.LOD == 0u) {
+            positions[i] = glm::vec4{trans.pos, trans.radius};
+            ++i;
+        } else {
+            positions2[j] = glm::vec4{trans.pos, trans.radius};
+            ++j;
+        }
+    }
+
+    sceneBuffer->vertexBuffer->updateBuffer(positions);
+    sceneBuffer2->vertexBuffer->updateBuffer(positions2);
 }

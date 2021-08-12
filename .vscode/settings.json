@@ -76,6 +76,7 @@
         "filesystem": "cpp",
         "ranges": "cpp",
         "span": "cpp",
-        "string_view": "cpp"
+        "string_view": "cpp",
+        "*.in": "cpp"
     }
 }

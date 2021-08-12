@@ -1,3 +1,4 @@
 #pragma once
 
 static constexpr auto SHADER_BASE_PATH = "@CMAKE_CURRENT_SOURCE_DIR@/shaders/";
+constexpr float G = 6.6743015e-11;

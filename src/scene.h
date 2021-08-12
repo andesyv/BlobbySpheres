@@ -23,12 +23,15 @@ private:
     std::shared_ptr<globjects::Buffer<GL_SHADER_STORAGE_BUFFER>> listBuffer;
     std::shared_ptr<globjects::Tex2D> listIndexTexture, listIndexTexture2;
 
+    std::vector<glm::vec4> positions, positions2;
+
 public:
     Scene();
 
     void reloadShaders();
 
-    void render();
+    void render(float deltaTime = 0.f);
+    void animate(float deltaTime = 0.f);
 };
 
 #endif // SCENE_H
