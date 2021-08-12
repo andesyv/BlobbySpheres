@@ -22,7 +22,6 @@ private:
 
     std::shared_ptr<globjects::Buffer<GL_SHADER_STORAGE_BUFFER>> listBuffer;
     std::shared_ptr<globjects::Tex2D> listIndexTexture;
-    std::shared_ptr<globjects::Buffer<GL_ATOMIC_COUNTER_BUFFER>> atomicCounter;
 
 public:
     Scene();

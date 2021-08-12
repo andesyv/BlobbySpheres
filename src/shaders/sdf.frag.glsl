@@ -15,15 +15,9 @@ uniform float smoothing = 0.13;
 layout(binding = 0) uniform sampler2D positionTex;
 layout(binding = 1) uniform usampler2D abufferIndexTexture;
 
-struct FragmentEntry
-{
-	vec4 pos;
-	uint prev;
-};
-
 layout(std430, binding = 0) buffer intersectionBuffer
 {
-	FragmentEntry intersections[LIST_MAX_ENTRIES];
+	vec4 intersections[];
 };
 
 out vec4 fragColor;
@@ -85,21 +79,14 @@ void main()
     float t3 = time / 3.0;
 
     // Build index list:
-    uint entryCount = 0;
-    vec4 entries[MAX_ENTRIES];
-    uint abuffer = texelFetch(abufferIndexTexture,ivec2(gl_FragCoord.xy),0).x;
-    fragColor = vec4(vec3(abuffer), 0.0);
-    return;
-    for (; 0 < abuffer && entryCount < MAX_ENTRIES; ++entryCount) {
-        FragmentEntry entry = intersections[abuffer];
-        entries[entryCount] = entry.pos;
-        abuffer = entry.prev;
-    }
-
-    fragColor = vec4(vec3(entryCount) / 10.0, 0.0);
-    return;
-
+    uint bufferIndex = MAX_ENTRIES * (SCREEN_SIZE.y * uint(gl_FragCoord.x) + uint(gl_FragCoord.y));
+    uint entryCount = min(texelFetch(abufferIndexTexture,ivec2(gl_FragCoord.xy),0).x, MAX_ENTRIES);
     if (entryCount != 0) {
+        vec4 entries[MAX_ENTRIES];
+        for (int i = 0; i < entryCount; ++i) {
+            entries[i] = intersections[bufferIndex + i];
+        }
+        
         vec4 p = ro;
         for (uint i = 0u; i < MAX_STEPS; ++i) {
             float dist = sdf(entries, entryCount, p.xyz);

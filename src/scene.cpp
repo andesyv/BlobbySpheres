@@ -14,9 +14,9 @@ using namespace comp;
 using namespace globjects;
 using namespace util;
 
-constexpr glm::uint SCENE_SIZE = 100;
-constexpr std::size_t MAX_ENTRIES = 128u;
-constexpr std::size_t LIST_MAX_ENTRIES = MAX_ENTRIES * 1000u;
+constexpr glm::uint SCENE_SIZE = 1000;
+constexpr std::size_t MAX_ENTRIES = 32u;
+constexpr std::size_t LIST_MAX_ENTRIES = MAX_ENTRIES * 800 * 600;
 constexpr float FAR_DIST = 1000.f;
 
 Scene::Scene()
@@ -117,12 +117,9 @@ Scene::Scene()
     listIndexTexture = std::make_shared<Tex2D>(SCR_SIZE, GL_R32UI, GL_RED_INTEGER);
 
     // SSBOs
-    const std::size_t entrySize = sizeof(glm::vec4) + sizeof(glm::uint);
-    const std::size_t bufferSize = entrySize * LIST_MAX_ENTRIES;
+    const std::size_t entrySize = sizeof(glm::vec4);
+    const std::size_t bufferSize = entrySize * MAX_ENTRIES * SCR_SIZE.x * SCR_SIZE.y;
     listBuffer = std::make_shared<Buffer<GL_SHADER_STORAGE_BUFFER>>(bufferSize, GL_DYNAMIC_DRAW);
-
-    // Atomic counters
-    atomicCounter = std::make_shared<Buffer<GL_ATOMIC_COUNTER_BUFFER>>(sizeof(glm::uint), GL_DYNAMIC_DRAW);
 }
 
 void Scene::reloadShaders() {
@@ -160,9 +157,6 @@ void Scene::render() {
     {
         auto g = listBuffer->guard();
         glClearBufferData(GL_SHADER_STORAGE_BUFFER, GL_R8, GL_RED, GL_UNSIGNED_INT, 0);
-        auto g2 = atomicCounter->guard();
-        constexpr static unsigned int atomicCounterClearData[] = {1};
-        glClearBufferData(GL_ATOMIC_COUNTER_BUFFER, GL_R32UI, GL_RED, GL_UNSIGNED_INT, atomicCounterClearData);
         // listIndexTexture->clear();
         glActiveTexture(GL_TEXTURE0);
         listIndexTexture->bind();
@@ -197,8 +191,7 @@ void Scene::render() {
 
     // List pass
     {
-        // glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT);
-        glMemoryBarrier(GL_ALL_BARRIER_BITS);
+        glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT);
         
         if (!shaders.contains("list"))
             return;
@@ -208,7 +201,6 @@ void Scene::render() {
 
         positionTexture->bind(0);
 
-        atomicCounter->bindRange(sizeof(glm::uint));
         glBindImageTexture(1, listIndexTexture->id, 0, GL_FALSE, 0, GL_READ_WRITE, GL_R32UI);
         listBuffer->bindBase();
         uniform(shaderId, "modelViewMatrix", vMat);
@@ -225,8 +217,7 @@ void Scene::render() {
 
     // Surface pass
     {
-        // glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT | GL_SHADER_STORAGE_BARRIER_BIT);
-        glMemoryBarrier(GL_ALL_BARRIER_BITS);
+        glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT | GL_SHADER_STORAGE_BARRIER_BIT);
 
         glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
         glDisable(GL_DEPTH_TEST);
