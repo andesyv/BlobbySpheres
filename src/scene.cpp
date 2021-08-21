@@ -95,7 +95,7 @@ Scene::Scene()
         const auto pos = glm::ballRand(0.5f);
         const auto radius = glm::linearRand(0.01f, 0.1f);
         const auto mass = 10.f * radius * radius;
-        auto velocity = glm::normalize(randomDiskPoint(pos, 1.f) - pos) * 0.3f;
+        auto velocity = glm::normalize(randomDiskPoint(pos, 1.f) - pos) * glm::linearRand(0.1f, 0.5f);
         // Multiply with mean orbital speed (https://en.wikipedia.org/wiki/Orbital_speed#Mean_orbital_speed):
         // velocity *= std::sqrt((G * PHYSICS_CENTER_MASS) / glm::length(pos));
 
@@ -115,7 +115,7 @@ Scene::Scene()
         const auto pos = glm::ballRand(0.4f);
         const auto radius = glm::linearRand(0.01f, 0.2f);
         const auto mass = 10.f * radius * radius;
-        auto velocity = glm::normalize(randomDiskPoint(pos, 1.f) - pos);
+        auto velocity = glm::normalize(randomDiskPoint(pos, 1.f) - pos) * glm::linearRand(1.f, 2.f);
 
         EM.emplace<Sphere>(entity, pos, radius, 1u);
         EM.emplace<Physics>(entity, velocity, mass);
