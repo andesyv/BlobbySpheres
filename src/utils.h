@@ -135,6 +135,43 @@ auto gen_vec(std::size_t N, T initVal = {}) {
 // generates a random point around a disk defined by a normal and a radius
 glm::vec3 randomDiskPoint(glm::vec3 n, float r);
 
+template <std::size_t I>
+constexpr auto split(const char (&str)[I]) {
+    std::vector<std::string_view> rets;
+    auto start{str}, end{str};
+    bool replacement = false;
+    for (std::size_t i{0}; i < I; ++i) {
+        const auto c = str[i];
+        if (replacement && c == '}') {
+            replacement = false;
+            start = str + i + 1;
+            end = start;
+        } else if (c == '{') {
+            replacement = true;
+            rets.emplace_back(start, end);
+        } else {
+            ++end;
+        }
+    }
+    return rets;
+}
+
+// Custom implementation of util::format, because no current compilers support this C++20 feature.
+template <std::size_t I, typename ... Args>
+constexpr std::string format(const char (&pattern)[I], const Args&... args) {
+    const auto argTuple = std::make_tuple(args...);
+    const auto segments = split<I>(pattern);
+    // static_assert(get_segment_count<I>(pattern) == std::tuple_size<std::tuple<Args...>>::value);
+    std::stringstream output{};
+    std::apply(
+        [&output, segments](Args const&... tupleArgs) {
+            std::size_t n{0};
+            ((output << segments.at(n++) << tupleArgs), ...);
+        }, argTuple
+    );
+    return output.str();
+}
+
 }
 
 #endif // UTILS_H

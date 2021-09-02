@@ -1,5 +1,5 @@
 #include "shader.h"
-#include <format>
+// #include <format>
 #include <fstream>
 #include <sstream>
 #include <string>
@@ -113,7 +113,7 @@ void Shader::addDefine(std::string&& value) {
 std::string Shader::getDefineStr() const {
     std::string output{};
     for (const auto& s : defines)
-        output.append(std::format("#define {}\n", s));
+        output.append(util::format("#define {}\n", s));
     return output;
 }
 
@@ -143,7 +143,7 @@ bool Shader::link() {
     std::size_t i{0};
     for (auto it{programs.begin()}; it != programs.end(); ++it, ++i)
         shaderIdentifier << it->second.filePath << (i == programs.size() - 1 ? "" : ", ");
-    const auto debugMessage = std::format("Shader {{{}}} successfully compiled with id {}", shaderIdentifier.str(), id);
+    const auto debugMessage = util::format("Shader {{{}}} successfully compiled with id {}", shaderIdentifier.str(), id);
     glDebugMessageInsert(GL_DEBUG_SOURCE_APPLICATION, GL_DEBUG_TYPE_OTHER, ++debugMessageId, GL_DEBUG_SEVERITY_NOTIFICATION, debugMessage.size(), debugMessage.c_str());
     
     bValid = true;
