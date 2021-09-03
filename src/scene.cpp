@@ -4,7 +4,7 @@
 #include "camera.h"
 #include "constants.h"
 
-// #include <format>
+#include <format>
 #include <vector>
 #include <iostream>
 #include <glm/gtc/random.hpp>
@@ -47,9 +47,9 @@ Scene::Scene()
             {GL_GEOMETRY_SHADER, "sphere.geom.glsl"},
             {GL_FRAGMENT_SHADER, "list.frag.glsl"}
         }, {
-            util::format("MAX_ENTRIES {}u", MAX_ENTRIES),
-            util::format("LIST_MAX_ENTRIES {}u", LIST_MAX_ENTRIES),
-            util::format("SCREEN_SIZE uvec2({},{})", SCR_SIZE.x, SCR_SIZE.y)
+            std::format("MAX_ENTRIES {}u", MAX_ENTRIES),
+            std::format("LIST_MAX_ENTRIES {}u", LIST_MAX_ENTRIES),
+            std::format("SCREEN_SIZE uvec2({},{})", SCR_SIZE.x, SCR_SIZE.y)
         }
     }));
 
@@ -58,10 +58,10 @@ Scene::Scene()
             {GL_VERTEX_SHADER, "screen.vert.glsl"},
             {GL_FRAGMENT_SHADER, "sdf.frag.glsl"}
         }, {
-            util::format("SCENE_SIZE {}u", SCENE_SIZE),
-            util::format("MAX_ENTRIES {}u", MAX_ENTRIES),
-            util::format("LIST_MAX_ENTRIES {}u", LIST_MAX_ENTRIES),
-            util::format("SCREEN_SIZE uvec2({},{})", SCR_SIZE.x, SCR_SIZE.y)
+            std::format("SCENE_SIZE {}u", SCENE_SIZE),
+            std::format("MAX_ENTRIES {}u", MAX_ENTRIES),
+            std::format("LIST_MAX_ENTRIES {}u", LIST_MAX_ENTRIES),
+            std::format("SCREEN_SIZE uvec2({},{})", SCR_SIZE.x, SCR_SIZE.y)
         }
     }));
 
@@ -161,7 +161,7 @@ void Scene::reloadShaders() {
 
     for (auto& [name, program] : shaders)
         if (!program.reload())
-            std::cout << util::format("Reloading \"{}\" shader failed!", name) << std::endl;
+            std::cout << std::format("Reloading \"{}\" shader failed!", name) << std::endl;
 }
 
 void Scene::render(float deltaTime) {

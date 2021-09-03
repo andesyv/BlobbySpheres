@@ -50,7 +50,7 @@ void showFPS(GLFWwindow* window)
         frameCount = 0;
         timer.reset();
 
-        std::string title = util::format("BlobbySpheres, fps: {}", fps);
+        std::string title = std::format("BlobbySpheres, fps: {}", fps);
 
         // Profiler
         const auto profiles = Profiler::get().getAvgTimesReset();
@@ -58,7 +58,7 @@ void showFPS(GLFWwindow* window)
             title.reserve(util::arrSize(", Profiling: ") + title.size() + profiles.size() * util::arrSize("{00.00ms},"));
             title += ", Profiling: ";
             for (const auto& p : profiles)
-                title += util::format("{{{}ms}},", util::to_string_with_precision(p * 0.001, 2));
+                title += std::format("{{{}ms}},", util::to_string_with_precision(p * 0.001, 2));
         }
 
         glfwSetWindowTitle(window, title.c_str());
