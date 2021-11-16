@@ -6,3 +6,6 @@ imgui.ini
 
 # Nvidia Nsight project files
 *.ngfx-proj
+
+# Project files
+.idea
