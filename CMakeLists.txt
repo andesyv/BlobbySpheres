@@ -3,11 +3,7 @@ cmake_minimum_required(VERSION 3.16.0)
 project(BlobbySpheres)
 
 # C++ Project settings
-if (MSVC)
-    set(CMAKE_CXX_STANDARD 23)
-else()
-    set(CMAKE_CXX_STANDARD 20)
-endif()
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 option(PARALLEL_BUILDING "Enable building using multiple cores" ON)
