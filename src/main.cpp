@@ -159,7 +159,7 @@ int main()
         const auto [sourceStr, typeStr, severityStr] = std::tie(SOURCES.at(source), TYPES.at(type), SEVERITIES.at(severity));
 
         std::cout << "GL_DEBUG: (source: " << sourceStr << ", type: " << typeStr << ", severity: " << severityStr << ", message: " << message << std::endl;
-        assert(severity != GL_DEBUG_SEVERITY_HIGH);
+//        assert(severity != GL_DEBUG_SEVERITY_HIGH);
     };
 
     glEnable(GL_DEBUG_OUTPUT);
