@@ -10,10 +10,44 @@ uniform mat4 MVPInverse = mat4(1.0);
 
 layout(std430, binding = 0) buffer sceneBuffer
 {
-	vec4 scene[];
+    vec4 scene[];
 };
 
 out vec4 fragColor;
+
+float rand(vec3 p) {
+    return fract(sin(dot(p,
+    vec3(12.9898, 78.233, 34.8731)))*
+    43758.5453123);
+}
+
+float noise3D(vec3 p) {
+    vec3 i = floor(p);
+    vec3 f = fract(p);
+
+    // 8 end points of square
+    float e[8] = float[8](
+    rand(i),
+    rand(i + vec3(1.0, 0.0, 0.0)),
+    rand(i + vec3(0.0, 1.0, 0.0)),
+    rand(i + vec3(1.0, 1.0, 0.0)),
+    rand(i + vec3(0.0, 0.0, 1.0)),
+    rand(i + vec3(1.0, 0.0, 1.0)),
+    rand(i + vec3(0.0, 1.0, 1.0)),
+    rand(i + vec3(1.0, 1.0, 1.0))
+    );
+
+    vec3 u = smoothstep(0., 1., f);
+
+    return e[0] * (1.0 - u.x) * (1.0 - u.y) * (1.0 - u.z) +
+    e[1] * u.x * (1.0 - u.y) * (1.0 - u.z) +
+    e[2] * (1.0 - u.x) * u.y * (1.0 - u.z) +
+    e[3] * u.x * u.y * (1.0 - u.z) +
+    e[4] * (1.0 - u.x) * (1.0 - u.y) * u.z +
+    e[5] * u.x * (1.0 - u.y) * u.z +
+    e[6] * (1.0 - u.x) * u.y * u.z +
+    e[7] * u.x * u.y * u.z;
+}
 
 // SDF:
 float sdfSphere(vec3 sp, float sr, vec3 p) {
@@ -22,10 +56,10 @@ float sdfSphere(vec3 sp, float sr, vec3 p) {
 
 // https://iquilezles.org/www/articles/smin/smin.htm
 // polynomial smooth min (k = 0.1);
-float smin( float a, float b, float k )
+float smin(float a, float b, float k)
 {
-    float h = max( k-abs(a-b), 0.0 )/k;
-    return min( a, b ) - h*h*k*(1.0/4.0);
+    float h = max(k-abs(a-b), 0.0)/k;
+    return min(a, b) - h*h*k*(1.0/4.0);
 }
 
 //// power smooth min (k = 8);
@@ -36,18 +70,19 @@ float smin( float a, float b, float k )
 //}
 
 float sdf(vec3 p) {
-    float dist = sdfSphere(scene[0].xyz, scene[0].w, p);
+    float disp = noise3D(p * 50.0) * 0.01;
+    float dist = sdfSphere(scene[0].xyz, scene[0].w, p) + disp;
     for (uint i = 1u; i < SCENE_SIZE; ++i)
-        dist = smin(dist, sdfSphere(scene[i].xyz, scene[i].w, p), 0.4);
-//        dist = min(dist, sdfSphere(scene[i].xyz, scene[i].w, p));
+        dist = smin(dist, sdfSphere(scene[i].xyz, scene[i].w, p)+disp, 0.4);
+//        dist = min(dist, sdfSphere(scene[i].xyz, scene[i].w, p) + disp);
     return dist;
 }
 
 vec3 gradient(vec3 p) {
     return vec3(
-        sdf(p + vec3(EPSILON, 0., 0.)) - sdf(p - vec3(EPSILON, 0., 0.)),
-        sdf(p + vec3(0., EPSILON, 0.)) - sdf(p - vec3(0., EPSILON, 0.)),
-        sdf(p + vec3(0., 0., EPSILON)) - sdf(p - vec3(0., 0., EPSILON))
+    sdf(p + vec3(EPSILON, 0., 0.)) - sdf(p - vec3(EPSILON, 0., 0.)),
+    sdf(p + vec3(0., EPSILON, 0.)) - sdf(p - vec3(0., EPSILON, 0.)),
+    sdf(p + vec3(0., 0., EPSILON)) - sdf(p - vec3(0., 0., EPSILON))
     );
 }
 
@@ -67,7 +102,7 @@ void main()
         float dist = sdf(p.xyz);
 
         if (1000.0 <= dist)
-            break;
+        break;
 
         if (dist < EPSILON) {
             vec3 grad = gradient(p.xyz);
