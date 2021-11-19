@@ -1,4 +1,7 @@
-# Compiled files
+# Binaries
+bin/
+
+# Build files
 build/
 
 # Dear ImGui artifacts

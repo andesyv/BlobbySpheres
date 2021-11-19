@@ -5,6 +5,7 @@ project(BlobbySpheres)
 # C++ Project settings
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)
 
 option(PARALLEL_BUILDING "Enable building using multiple cores" ON)
 if (PARALLEL_BUILDING)
@@ -32,4 +33,6 @@ else()
 endif()
 
 # Add library subdirectory cmakelists.txt:
+add_library(ext)
 add_subdirectory(lib)
+target_link_libraries(BlobbySpheres ext)
