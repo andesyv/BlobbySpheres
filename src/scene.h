@@ -15,14 +15,15 @@ private:
     std::map<std::string, Shader> shaders;
     comp::Mesh screenMesh;
     entt::registry EM;
-    std::shared_ptr<globjects::Buffer<GL_SHADER_STORAGE_BUFFER>> sceneBuffer;
+    std::shared_ptr<globjects::Buffer<GL_SHADER_STORAGE_BUFFER>> sceneBuffer, sceneBuffer2;
 
     std::shared_ptr<globjects::Tex2D> positionTexture, depthTexture;
 
     std::shared_ptr<globjects::Buffer<GL_SHADER_STORAGE_BUFFER>> listBuffer;
     std::shared_ptr<globjects::Tex2D> listIndexTexture, listIndexTexture2;
+    std::unique_ptr<globjects::Tex3D> volumeSampleTexture, volumeSampleTexture2;
 
-    std::vector<glm::vec4> positions;
+    std::vector<glm::vec4> positions, positions2;
 
 public:
     Scene();

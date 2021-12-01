@@ -14,14 +14,31 @@
 #include "utils.h"
 
 namespace globjects {
-    // Util guard class
+
 template <typename T>
-class Guard {
+concept Bindable = requires(T t) {
+    t.bind();
+    t.unbind();
+};
+
+template <typename T>
+concept BindableIndexed = requires(T t) {
+    t.bind(0);
+    t.unbind(0);
+};
+
+// Util guard class
+template <typename C, typename P = void>
+    requires BindableIndexed<C> || Bindable<C>
+class Guard {};
+
+template <Bindable T>
+class Guard<T> {
 protected:
     T* mPtr;
 
 public:
-    Guard(T* ptr)
+    explicit Guard(T* ptr)
      : mPtr{ptr} {
         if (mPtr)
             mPtr->bind();
@@ -32,6 +49,30 @@ public:
             mPtr->unbind();
     }
 };
+
+template <BindableIndexed T, typename IndexT>
+class Guard<T, IndexT> {
+protected:
+    T* mPtr;
+    const IndexT mBinding = 0;
+
+public:
+    explicit Guard(T* ptr, IndexT binding = 0)
+            : mPtr{ptr}, mBinding{binding} {
+        if (mPtr)
+            mPtr->bind(binding);
+    }
+
+    ~Guard() {
+        if (mPtr)
+            mPtr->unbind();
+    }
+};
+
+template <typename T>
+auto make_guard(T* p) { return Guard<T>{p}; }
+template <typename T>
+auto make_guard(T* p, unsigned int binding) { return Guard<T, unsigned int>{p, binding}; }
 
 template <GLenum BufferType>
 class Buffer {
@@ -76,21 +117,24 @@ public:
         bufferData(params, usage);
     }
 
-    void bind() {
-        glBindBuffer(BufferType, id);
-    }
-
-    void unbind() {
-        glBindBuffer(BufferType, 0);
-    }
-
-    auto guard() { return Guard{this}; }
-
-    std::size_t size() const { return bufferSize; }
-
     void bindBase(unsigned int binding = 0) {
         glBindBufferBase(BufferType, binding, id);
     }
+
+    void bind() {
+        glBindBuffer(BufferType, id);
+    }
+    void bind(unsigned int binding) { bindBase(binding); }
+
+    void unbind(unsigned int = 0) {
+        glBindBuffer(BufferType, 0);
+    }
+
+    auto guard() { return make_guard(this); }
+    auto guard(unsigned int binding) { return make_guard(this, binding); }
+
+    std::size_t size() const { return bufferSize; }
+
 
     // Same as bindBase, but also let's you specify range of bound buffer (glBindBufferRange)
     void bindRange(GLsizeiptr size, unsigned int binding = 0, GLintptr offset = 0) {
@@ -130,6 +174,13 @@ public:
         glActiveTexture(GL_TEXTURE0 + textureUnit);
         glBindTexture(TextureType, id);
     }
+
+    void unbind(unsigned int textureUnit = 0) {
+        glActiveTexture(GL_TEXTURE0 + textureUnit);
+        glBindTexture(TextureType, 0);
+    }
+
+    [[nodiscard]] auto guard(unsigned int textureUnit = 0) { return make_guard(this, textureUnit); }
 
     ~TextureBase() {
         glDeleteTextures(1, &id);
@@ -223,7 +274,7 @@ public:
         glBindBuffer(GL_RENDERBUFFER, 0);
     }
 
-    auto guard() { return Guard{this}; }
+    auto guard() { return make_guard(this); }
 
     void init(glm::ivec2 size = glm::ivec2{}, GLenum internalformat = GL_RGBA16F) {
         auto g = guard();
@@ -288,7 +339,7 @@ public:
         glBindVertexArray(0);
     }
 
-    auto guard() { return Guard{this}; }
+    auto guard() { return make_guard(this); }
 
     bool hasIndices() const { return static_cast<bool>(indexBuffer); }
 
@@ -445,7 +496,7 @@ public:
     void bindRead() { glBindFramebuffer(GL_READ_FRAMEBUFFER, id); }
     void unbind() { glBindFramebuffer(GL_FRAMEBUFFER, 0); }
 
-    auto guard() { return Guard{this}; }
+    auto guard() { return make_guard(this); }
 
     bool valid() const { return bValid; }
 
