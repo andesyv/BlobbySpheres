@@ -1,11 +1,12 @@
 #version 450
 
-layout(local_size_x = 2) in;
+#define EPSILON 0.001
 
-uniform mat4 MVP = mat4(1.0);
+layout(local_size_x = 1) in;
 
-layout(binding = 0) uniform sampler3D volumeSample;
-layout(binding = 1) uniform sampler3D volumeSample2;
+uniform mat4 MVPInverse = mat4(1.0);
+
+layout(binding = 0, r16f) writeonly uniform image3D volumeDiff;
 layout(std430, binding = 2) buffer sceneBuffer
 {
     vec4 lod0[];
@@ -26,23 +27,32 @@ float smin(float a, float b, float k)
     return min(a, b) - h*h*k*(1.0/4.0);
 }
 
-const bool FIRST_LOD = gl_LocalInvocationID.x == 0;
-
-float sdf(vec3 p) {
-    vec4 first = FIRST_LOD ? lod0[0] : lod1[0];
+float sdf(vec3 p, bool first_lod) {
+    vec4 first = first_lod ? lod0[0] : lod1[0];
     float dist = sdfSphere(first.xyz, first.w, p);
-    for (uint i = 1u; i < (FIRST_LOD ? SCENE_SIZE : SCENE_SIZE2); ++i)
-        dist = smin(dist, sdfSphere((FIRST_LOD ? lod0 : lod1)[i].xyz, (FIRST_LOD ? lod0 : lod1)[i].w, p), 0.4);
+    for (uint i = 1u; i < (first_lod ? SCENE_SIZE : SCENE_SIZE2); ++i)
+        dist = smin(dist, sdfSphere((first_lod ? lod0 : lod1)[i].xyz, (first_lod ? lod0 : lod1)[i].w, p), 0.4);
     return dist;
 }
 
+vec3 gradient(vec3 p, bool first_lod) {
+    return vec3(
+        sdf(p + vec3(EPSILON, 0., 0.), first_lod) - sdf(p - vec3(EPSILON, 0., 0.), first_lod),
+        sdf(p + vec3(0., EPSILON, 0.), first_lod) - sdf(p - vec3(0., EPSILON, 0.), first_lod),
+        sdf(p + vec3(0., 0., EPSILON), first_lod) - sdf(p - vec3(0., 0., EPSILON), first_lod)
+    );
+}
+
 void main() {
-    vec3 ndc_coord = vec3(gl_WorkGroupID) / vec3(gl_NumWorkGroups - 1);
-    vec4 p = MVP * vec4(ndc_coord, 1.0);
+    vec3 ndc_coord = 2.0 * (vec3(gl_WorkGroupID) / vec3(gl_NumWorkGroups - 1)) - 1.0;
+    vec4 p = MVPInverse * vec4(ndc_coord, 1.0);
     p /= p.w;
 
-    if (FIRST_LOD)
-        imageStore(volumeSample, ivec3(gl_WorkGroupID), vec4(sdf(p.xyz)));
-    else
-        imageStore(volumeSample2, ivec3(gl_WorkGroupID), vec4(sdf(p.xyz)));
+//    vec3 g_lod0 = gradient(p.xyz, true);
+//    vec3 g_lod1 = gradient(p.xyz, false);
+    float lod0 = sdf(p.xyz, true);
+    float lod1 = sdf(p.xyz, false);
+
+//    imageStore(volumeDiff, ivec3(gl_WorkGroupID), vec4(g_lod1 - g_lod0, 0.));
+    imageStore(volumeDiff, ivec3(gl_WorkGroupID), vec4(lod1 - lod0));
 }

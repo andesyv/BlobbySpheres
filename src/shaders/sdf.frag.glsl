@@ -6,12 +6,20 @@
 
 in vec2 ndc;
 
+uniform mat4 MVP = mat4(1.0);
 uniform mat4 MVPInverse = mat4(1.0);
-
+uniform float interpolation = 0.0;
 layout(std430, binding = 0) buffer sceneBuffer
 {
     vec4 scene[];
 };
+
+layout(std430, binding = 1) buffer sceneBuffer2
+{
+    vec4 scene2[];
+};
+
+layout(binding = 2) uniform sampler3D volumeDiff;
 
 out vec4 fragColor;
 
@@ -69,12 +77,21 @@ float smin(float a, float b, float k)
 //    return pow( (a*b)/(a+b), 1.0/k );
 //}
 
+float get_disp(vec3 p) {
+    // return noise3D(p * 50.0) * 0.01;
+    vec4 screen_pos = MVP * vec4(p, 1.0);
+    screen_pos *= screen_pos.w;
+    // from NDC to texture coords:
+    screen_pos = screen_pos * 0.5 + 0.5;
+    return -texture(volumeDiff, screen_pos.xyz).r * interpolation;
+}
+
 float sdf(vec3 p) {
-    float disp = noise3D(p * 50.0) * 0.01;
+    float disp = get_disp(p);
     float dist = sdfSphere(scene[0].xyz, scene[0].w, p) + disp;
     for (uint i = 1u; i < SCENE_SIZE; ++i)
-        dist = smin(dist, sdfSphere(scene[i].xyz, scene[i].w, p)+disp, 0.4);
-//        dist = min(dist, sdfSphere(scene[i].xyz, scene[i].w, p) + disp);
+        dist = smin(dist, sdfSphere(scene[i].xyz, scene[i].w, p) + disp, 0.4);
+    //        dist = min(dist, sdfSphere(scene[i].xyz, scene[i].w, p) + disp);
     return dist;
 }
 

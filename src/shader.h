@@ -7,6 +7,7 @@
 #include <set>
 #include <array>
 #include <string_view>
+#include <memory>
 
 #include <glad/glad.h>
 
@@ -36,7 +37,7 @@ public:
 private:
     bool bOwned = true;
     bool bValid = false;
-    int id;
+    int id{};
 
     std::map<GLenum, SubShader> programs;
     std::set<std::string> defines;
@@ -83,10 +84,10 @@ public:
 
     Shader() = delete;
     Shader(const Shader&) = delete;
-    Shader(Shader&& rhs);
+    Shader(Shader&& rhs) noexcept ;
 
     template <std::size_t I>
-    Shader(std::pair<GLenum, std::string>(&& params)[I]) {
+    explicit Shader(std::pair<GLenum, std::string>(&& params)[I]) {
         compileAndLink(std::to_array<std::pair<GLenum, std::string>, I>(params)); // C++20
     }
 
@@ -99,7 +100,7 @@ public:
     }
 
     Shader& operator=(const Shader&) = delete;
-    Shader& operator=(Shader&& rhs);
+    Shader& operator=(Shader&& rhs) noexcept ;
 
     // template <typename ... S>
     // Shader(S&& ... args) {

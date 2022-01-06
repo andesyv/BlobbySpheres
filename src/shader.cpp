@@ -177,13 +177,13 @@ bool Shader::reload() {
     return link();
 }
 
-Shader::Shader(Shader&& rhs)
+Shader::Shader(Shader&& rhs) noexcept
  : id{rhs.id}, bValid{rhs.bValid}, programs{std::move(rhs.programs)}, defines{std::move(rhs.defines)}
 {
     rhs.bOwned = false;
 }
 
-Shader& Shader::operator=(Shader&& rhs) {
+Shader& Shader::operator=(Shader&& rhs) noexcept {
     id = rhs.id;
     bValid = rhs.bValid;
     programs = std::move(rhs.programs);

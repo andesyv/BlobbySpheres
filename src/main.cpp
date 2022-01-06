@@ -73,7 +73,7 @@ int main()
 {
     Timer appTimer{};
     std::srand(std::time(nullptr));
-    auto [SCR_SIZE, runningTime] = get_multiple<0, 2>(Settings::get().to_tuple());
+    auto [SCR_SIZE, runningTime] = get_multiple<0, 3>(Settings::get().to_tuple());
  
     // glfw: initialize and configure
     // ------------------------------
@@ -113,6 +113,11 @@ int main()
     };
 
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
+    glfwSetWindowPosCallback(window, [](auto* window, int x, int y){
+        auto& pos = Settings::get().SCR_POS;
+        pos.x = static_cast<unsigned int>(x);
+        pos.y = static_cast<unsigned int>(y);
+    });
 
     // glad: load all OpenGL function pointers
     // ---------------------------------------
@@ -207,15 +212,29 @@ int main()
         });
 
         glfwSetScrollCallback(window, [](auto window, double y, double x){
-            const auto zoomSpeed = 0.1;
+            const auto zoomSpeed = 0.01;
             auto& zoom = Settings::get().zoom;
             zoom = std::clamp(zoom + x * zoomSpeed, 0.0, 1.0);
             bCameraUpdated = true;
         });
 
         glfwSetCursorPosCallback(window, [](auto window, double x, double y){
-            auto [size, mousePos] = get_multiple<0, 1>(Settings::get().to_tuple());
-            mousePos = (glm::dvec2{x, y} / glm::dvec2{size}) * 2.0 - 1.0;
+            auto [size, scr_pos, mousePos] = get_multiple<0, 1, 2>(Settings::get().to_tuple());
+            /**
+             * f(screen_pos_0) = -1
+             * f(screen_pos_0 + screen_size) = 1
+             * f = ax + b
+             * a * screen_pos_0 + b = -1 => b = -1 - a * screen_pos_0
+             * a * (screen_pos_0 + screen_size) + b = 1
+             * a * (screen_pos_0 + screen_size) + (-1 - a * screen_pos_0) = 1
+             * a * screen_size - 1 = 1
+             * a * screen_size = 2 => a = 2 / screen_size
+             * b = -1 - a * screen_pos_0 => b = -1 - screen_pos_0 * 2 / screen_size
+             * (2 / screen_size) * x + (-1 - screen_pos_0 * 2 / screen_size)
+             * x * 2 / screen_size -1 - screen_pos_0 * 2 / screen_size
+             * (x - screen_pos_0) * 2 / screen_size - 1
+             */
+            mousePos = (glm::dvec2{x, y} - glm::dvec2{scr_pos}) * 2.0 / glm::dvec2{size} - 1.0;
             bCameraUpdated = true;
         });
 

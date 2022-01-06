@@ -12,6 +12,7 @@ auto get_multiple(const std::tuple<T...>& tuple) {
 class Settings {
 public:
     glm::uvec2 SCR_SIZE = {800, 600};
+    glm::uvec2 SCR_POS = {800, 600};
     glm::dvec2 mousePos;
     float runningTime = 0.f;
     double zoom = 0.5;
@@ -22,8 +23,8 @@ public:
     }
 
     auto to_tuple() {
-        auto& [a, b, c, d] = *this;
-        return std::forward_as_tuple(a, b, c, d);
+        auto& [a, b, c, d, e] = *this;
+        return std::forward_as_tuple(a, b, c, d, e);
     }
 };
 
